@@ -31,7 +31,7 @@ def selectStudy(studyPaths):
 			studies = [
 				inq.List('studies',
 						message = "Which study would you like to bidsify?",
-						choices = ['opioid', 'explosive sync', 'bacpac', 'bacpac best', 'mapp2', 'micapp', 'cpira2'],
+						choices = ['opioid', 'explosive sync', 'bacpac', 'bacpac best', 'mapp2', 'micapp', 'cpira2', 'add new study'],
 					),
 			]
 			studiesAnswer = inq.prompt(studies)
@@ -54,7 +54,9 @@ def selectStudy(studyPaths):
 		if studyAnswer == "explosive sync":
 			studyAnswer = "explosiveSync"
 		elif studyAnswer == "bacpac best":
-			studyAnswer = "bacpacBest"	
+			studyAnswer = "bacpacBest"
+		elif studyAnswer == "add new study":
+			addStudy()
 		if validateRawDir(studyAnswer) == True:
 			break
 		else:
@@ -217,7 +219,7 @@ def checkTimestamp():
 	pass
 
 
-rawStudyPaths = {"opioid": "/PROJECTS/REHARRIS/opioid/RAW", "explosiveSync": "/PROJECTS/REHARRIS/explosives/raw", "bacpac": "/PROJECTS/bacpac/raw", "bacpacBest": "/PROJECTS/bacpac/qa/best/BIDS", "mapp2": "/PROJECTS/MAPP/MAPP2/SUBJECTS", "cpira2": ""}
+rawStudyPaths = {"opioid": "/PROJECTS/REHARRIS/opioid/RAW", "explosiveSync": "/PROJECTS/REHARRIS/explosives/raw", "bacpac": "/PROJECTS/bacpac/raw", "bacpacBest": "/PROJECTS/bacpac/qa/best/BIDS", "mapp2": "/PROJECTS/MAPP/MAPP2/SUBJECTS", "cpira2": "", "add new study": "placeholder"}
 
 selectedStudy, directory = selectStudy(rawStudyPaths)
 modality = getModality(selectedStudy)

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # Created by: Daniel Asay 
-# Last edit: October 14th
+# Last edit: October 21st
 
 # the database aspect of this script may be more ambitious than is really feasible right now...
 
@@ -9,6 +9,7 @@
 import inquirer as inq
 import os
 import time
+import pandas as pd
 import subprocess
 import shutil
 from tqdm import tqdm
@@ -25,13 +26,25 @@ from colorama import Style
 # 1. Create user-prompt for running copying/bidsifying anat, func or fmap data
 #	***** Grab this from the qc pipeline scripts
 
+def loadStudies():
+	df = pd.read_csv("~/Desktop/studies.csv")
+	#df = pd.read_csv("/PROJECTS/REHARRIS/studies.csv")
+	names = list(df['Study_Name'])
+	rawPaths = list(df['Raw_Path'])
+	pairs = dict(zip(names, rawPaths))
+	return pairs
+
+
+
 def selectStudy(studyPaths):
+	names = list(studyPaths.keys())
+	names.append('add new study')
 	while True:
 		try:
 			studies = [
 				inq.List('studies',
 						message = "Which study would you like to bidsify?",
-						choices = ['opioid', 'explosive sync', 'bacpac', 'bacpac best', 'mapp2', 'micapp', 'cpira2', 'add new study'],
+						choices = names
 					),
 			]
 			studiesAnswer = inq.prompt(studies)
@@ -43,7 +56,7 @@ def selectStudy(studyPaths):
 			}
 			confirmationAnswer = inq.prompt(studyConfirmation)
 			if confirmationAnswer['studyConfirmation'] == True:
-				print("Study Selection Confirmed.")
+				print("Study Selection Confirmed.\n")
 				time.sleep(.5)
 			else:
 				raise ValueError("You did not confirm your selection. Please try again.")
@@ -57,6 +70,7 @@ def selectStudy(studyPaths):
 			studyAnswer = "bacpacBest"
 		elif studyAnswer == "add new study":
 			addStudy()
+			continue
 		if validateRawDir(studyAnswer) == True:
 			break
 		else:
@@ -96,7 +110,7 @@ def getModality(study):
 			}
 			confirmationAnswer = inq.prompt(modalityConfirmation)
 			if confirmationAnswer['modalityConfirmation'] == True:
-				print("Modality Selection Confirmed.")
+				print("Modality Selection Confirmed.\n")
 				time.sleep(.5)
 				break
 			else:
@@ -149,7 +163,7 @@ def getFormat():
 			}
 			confirmationAnswer = inq.prompt(formatConfirmation)
 			if confirmationAnswer['formatConfirmation'] == True:
-				print("Format Selection Confirmed.")
+				print("Format Selection Confirmed.\n")
 				time.sleep(.5)
 				break
 			else:
@@ -181,7 +195,7 @@ def rawType():
 			}
 			confirmationAnswer = inq.prompt(rawConfirmation)
 			if confirmationAnswer['rawConfirmation'] == True:
-				print("Raw Dicom Format Selection Confirmed.")
+				print("Raw Dicom Format Selection Confirmed.\n")
 				time.sleep(.5)
 				break
 			else:
@@ -199,7 +213,63 @@ def rawType():
 # ***** Gonna have to create a table that holds all this info
 
 def addStudy():
-	pass
+	while True:
+
+		# get the new study's name
+
+		try:
+			newName = [
+				inq.Text('newName',
+						message = "What's the name of the new study?",
+					),
+			]
+			namesAnswer = inq.prompt(newName)
+			nameAnswer = namesAnswer['newName']
+			nameConfirmation = {
+				inq.Confirm('nameConfirmation',
+						message="New study name: " + Style.BRIGHT + Fore.BLUE + nameAnswer + Style.RESET_ALL + ". Is that correct?",
+					),
+			}
+			confirmationAnswer = inq.prompt(nameConfirmation)
+			if confirmationAnswer['nameConfirmation'] == True:
+				print("New Study Name Confirmed.\n")
+				time.sleep(.5)
+				break
+			else:
+				raise ValueError("You did not confirm your selection. Please try again.")
+		except ValueError:
+			print("You did not confirm your selection. Please try again.")
+			time.sleep(1.5)
+			continue
+
+		# get the new study's path to raw directory
+	while True:
+		try:
+			newPath = [
+				inq.Text('newPath',
+						message = "Please enter the full path to the study's raw directory",
+					),
+			]
+			pathsAnswer = inq.prompt(newPath)
+			pathAnswer = pathsAnswer['newPath']
+			pathConfirmation = {
+				inq.Confirm('pathConfirmation',
+						message="New study raw path: " + Style.BRIGHT + Fore.BLUE + pathAnswer + Style.RESET_ALL + ". Is that correct?",
+					),
+			}
+			confirmationAnswer = inq.prompt(pathConfirmation)
+			if confirmationAnswer['pathConfirmation'] == True:
+				print("New Raw Path Confirmed.\n")
+				time.sleep(.5)
+				break
+			else:
+				raise ValueError("You did not confirm your selection. Please try again.")
+		except ValueError:
+			print("You did not confirm your selection. Please try again.")
+			time.sleep(1.5)
+			continue
+
+	return nameAnswer
 
 # 6. Make bidsify and copy into discrete functions (makes the script more robust and readable.)
 # ****** I'll have to modify the stuff in beforefmriprep01 and func_BIDS
@@ -219,7 +289,7 @@ def checkTimestamp():
 	pass
 
 
-rawStudyPaths = {"opioid": "/PROJECTS/REHARRIS/opioid/RAW", "explosiveSync": "/PROJECTS/REHARRIS/explosives/raw", "bacpac": "/PROJECTS/bacpac/raw", "bacpacBest": "/PROJECTS/bacpac/qa/best/BIDS", "mapp2": "/PROJECTS/MAPP/MAPP2/SUBJECTS", "cpira2": "", "add new study": "placeholder"}
+rawStudyPaths = loadStudies()
 
 selectedStudy, directory = selectStudy(rawStudyPaths)
 modality = getModality(selectedStudy)
@@ -227,9 +297,11 @@ niftiFormat = getFormat()
 if "raw" in niftiFormat:
 	rawType()
 
+#data = [["opioid", "/PROJECTS/REHARRIS/opioid/RAW", "tgz", ""], ["explosiveSync", "/PROJECTS/REHARRIS/explosives/raw", "tgz", ""], ["bacpac", "/PROJECTS/bacpac/raw", "zip tgz", ""], ["bacpacBest", "/PROJECTS/bacpac/qa/best/BIDS", "dicom", ""], ["mapp2", "/PROJECTS/MAPP/MAPP2/SUBJECTS", "unknown", ""]]
 
+#df = pd.DataFrame(data, columns=['Study_Name', 'Raw_Path', 'Raw_Format', "Last_Copied"])
 
-
+#df.to_csv('studies.csv)
 
 
 

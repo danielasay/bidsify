@@ -26,7 +26,9 @@ from time import sleep
 #Things this script will have:
 
 # 1. Create user-prompt for running copying/bidsifying anat, func or fmap data
-#	***** Grab this from the qc pipeline scripts
+
+
+# this function serves to load in the list of studies and their raw directories from the csv file stored on the server
 
 def loadStudies():
 	df = pd.read_csv("~/Desktop/studies.csv")
@@ -37,6 +39,7 @@ def loadStudies():
 	return pairs
 
 
+# this function will ask the user to select a study they would like to bidsify from the generated list. 
 
 def selectStudy(studyPaths):
 	names = list(studyPaths.keys())
@@ -83,6 +86,8 @@ def selectStudy(studyPaths):
 	rawDir = studyPaths[studyAnswer]
 	return studyAnswer, rawDir
 
+# this function will ask the user to select the modality types they would like to bidsify
+
 def getModality(study):
 	print("\nWhen selecting modalities, you can choose more than one option.\nUse the right arrow key to check an option and the left arrow key to uncheck.\nPress enter when you're done choosing.")
 	while True:
@@ -124,6 +129,8 @@ def getModality(study):
 				continue
 	return modalityAnswer
 
+# this function exists to validate that the chosen study has a valid raw directory to use.
+
 def validateRawDir(study):
 		if rawStudyPaths[study] == "":
 			return False
@@ -133,7 +140,8 @@ def validateRawDir(study):
 
 
 # 2. Ask user if it wants niftis created from raw dicoms, or the run_01.nii, prun_01.nii or all of the above.
-#	******* this can also be taken from the qc pipeline scripts
+
+# this function will ask the user to choose from several options regarding how they want their data copied.
 
 def getFormat():
 	print("\nNow, select the format you'd like your niftis to come in.")
@@ -178,7 +186,6 @@ def getFormat():
 	return formatAnswer
 
 #3. Ask user what format the raw dicoms come in (e.g. zip, tgz or don't know)
-# ****** this can probably be adpated from the qc pipeline scripts as well
 
 # this function may not be relevant, theoretically this info will be in the csv file
 
@@ -212,10 +219,8 @@ def rawType():
 	return rawAnswer
 
 # 4. Give user the option to add new study to matrix
-# ***** the user portion can be taken from the qc scripts, but I will have to do some reading on python sql
-# *****commands
-# ***** This is where the database portion comes in. We could have a simple table that contains each study's name, path, data format and total subjects (running count), timestamp of when qc was last run
-# ***** Gonna have to create a table that holds all this info
+
+# this supports the user in adding a new study to the list. It asks for the name, raw data path and the form the raw data comes in.
 
 def addStudy():
 	while True:
@@ -317,9 +322,6 @@ def addStudy():
 	df.to_csv('~/Desktop/studies.csv', index=False)
 	print("Your study has been successfully added to the database!\nYou will now be redirected to the starting prompt.\n")
 	sleep(4)
-
-	#studies = loadStudies()
-	#selectStudy(studies)
 
 	return nameAnswer, pathAnswer, rawAnswer
 

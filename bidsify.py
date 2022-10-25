@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # Created by: Daniel Asay 
-# Last edit: October 21st
+# Last edit: October 25th
 
 # the database aspect of this script may be more ambitious than is really feasible right now...
 
@@ -8,6 +8,7 @@
 
 import inquirer as inq
 import os
+import sys
 import time
 import pandas as pd
 import subprocess
@@ -17,6 +18,7 @@ from yaspin import yaspin
 from pprint import pprint
 from colorama import Fore
 from colorama import Style
+from time import sleep
 
 
 # This script is a new version of the beforefmriprep scripts. 
@@ -57,12 +59,12 @@ def selectStudy(studyPaths):
 			confirmationAnswer = inq.prompt(studyConfirmation)
 			if confirmationAnswer['studyConfirmation'] == True:
 				print("Study Selection Confirmed.\n")
-				time.sleep(.5)
+				sleep(.5)
 			else:
 				raise ValueError("You did not confirm your selection. Please try again.")
 		except ValueError:
 				print("You did not confirm your selection. Please try again.")
-				time.sleep(1.5)
+				sleep(1.5)
 				continue
 		if studyAnswer == "explosive sync":
 			studyAnswer = "explosiveSync"
@@ -70,11 +72,12 @@ def selectStudy(studyPaths):
 			studyAnswer = "bacpacBest"
 		elif studyAnswer == "add new study":
 			addStudy()
-			continue
+			os.system("python3 ~/Documents/Michigan/bidsify/bidsify.py")
+			sys.exit()
 		if validateRawDir(studyAnswer) == True:
 			break
 		else:
-			print("The study you selected does not have a valid BIDS directory.\nSelect a different study or add a valid BIDS directory for " + studyAnswer + ".")
+			print("The study you selected does not have a valid raw directory.\nSelect a different study or add a valid raw directory for " + studyAnswer + ".")
 			time.sleep(1.5)
 			continue
 	rawDir = studyPaths[studyAnswer]
@@ -177,6 +180,8 @@ def getFormat():
 #3. Ask user what format the raw dicoms come in (e.g. zip, tgz or don't know)
 # ****** this can probably be adpated from the qc pipeline scripts as well
 
+# this function may not be relevant, theoretically this info will be in the csv file
+
 def rawType():
 	while True:
 		try:
@@ -243,6 +248,7 @@ def addStudy():
 			continue
 
 		# get the new study's path to raw directory
+
 	while True:
 		try:
 			newPath = [
@@ -269,7 +275,53 @@ def addStudy():
 			time.sleep(1.5)
 			continue
 
-	return nameAnswer
+	# get the format that the new study's dicoms come in
+
+	while True:
+		try:
+			rawTypes = [
+				inq.List('rawTypes',
+						message = "What format do the raw dicoms come in?",
+						choices = ['tgz', 'zip', 'not sure'],
+					),
+			]
+			rawsAnswer = inq.prompt(rawTypes)
+			rawAnswer = rawsAnswer['rawTypes']
+			rawConfirmation = {
+				inq.Confirm('rawConfirmation',
+						message="You've selected " + Style.BRIGHT + Fore.BLUE + rawAnswer + Style.RESET_ALL + " format. Is that correct?",
+					),
+			}
+			confirmationAnswer = inq.prompt(rawConfirmation)
+			if confirmationAnswer['rawConfirmation'] == True:
+				print("Raw Dicom Format Selection Confirmed.\n")
+				time.sleep(.5)
+				break
+			else:
+				raise ValueError("You did not confirm your selection. Please try again.")
+		except ValueError:
+				print("You did not confirm your selection. Please try again.")
+				time.sleep(1.5)
+				continue
+
+	#df = pd.read_csv("/PROJECTS/REHARRIS/studies.csv")
+	df = pd.read_csv("~/Desktop/studies.csv")
+	df2 = pd.DataFrame({"Study_Name":[nameAnswer],
+						"Raw_Path":[pathAnswer],
+						"Raw_Format":[rawAnswer],
+						"Last_Copied":""})
+	print(df2)
+	df = df.append(df2, ignore_index=True)
+	print(df)
+	#df.to_csv('/PROJECTS/REHARRIS/studies.csv')
+	df.to_csv('~/Desktop/studies.csv', index=False)
+	print("Your study has been successfully added to the database!\nYou will now be redirected to the starting prompt.\n")
+	sleep(4)
+
+	#studies = loadStudies()
+	#selectStudy(studies)
+
+	return nameAnswer, pathAnswer, rawAnswer
 
 # 6. Make bidsify and copy into discrete functions (makes the script more robust and readable.)
 # ****** I'll have to modify the stuff in beforefmriprep01 and func_BIDS
@@ -294,8 +346,8 @@ rawStudyPaths = loadStudies()
 selectedStudy, directory = selectStudy(rawStudyPaths)
 modality = getModality(selectedStudy)
 niftiFormat = getFormat()
-if "raw" in niftiFormat:
-	rawType()
+#if "raw" in niftiFormat:
+#	rawType()
 
 #data = [["opioid", "/PROJECTS/REHARRIS/opioid/RAW", "tgz", ""], ["explosiveSync", "/PROJECTS/REHARRIS/explosives/raw", "tgz", ""], ["bacpac", "/PROJECTS/bacpac/raw", "zip tgz", ""], ["bacpacBest", "/PROJECTS/bacpac/qa/best/BIDS", "dicom", ""], ["mapp2", "/PROJECTS/MAPP/MAPP2/SUBJECTS", "unknown", ""]]
 

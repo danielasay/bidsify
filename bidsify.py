@@ -19,6 +19,9 @@ from pprint import pprint
 from colorama import Fore
 from colorama import Style
 from time import sleep
+from bidsmanager.read import read_csv
+from bidsmanager.read.dicom_reader import read_dicom_directory
+from bidsmanager.write.dataset_writer import write_dataset
 
 
 # This script is a new version of the beforefmriprep scripts. 
@@ -36,7 +39,7 @@ def loadStudies():
 	names = list(df['Study_Name'])
 	rawPaths = list(df['Raw_Path'])
 	pairs = dict(zip(names, rawPaths))
-	return pairs
+	return pairs, df
 
 
 # this function will ask the user to select a study they would like to bidsify from the generated list. 
@@ -76,6 +79,7 @@ def selectStudy(studyPaths):
 		elif studyAnswer == "add new study":
 			addStudy()
 			os.system("python3 ~/Documents/Michigan/bidsify/bidsify.py")
+			#os.system("python3 ~/bidsify/bidsify.py")
 			sys.exit()
 		if validateRawDir(studyAnswer) == True:
 			break
@@ -309,27 +313,71 @@ def addStudy():
 				time.sleep(1.5)
 				continue
 
+	# get the prefix for the subjects in the study
+
+	while True:
+		try:
+			prefixTypes = [
+				inq.Text('prefixTypes',
+						message = "What is the prefix for the subjects in the raw dir? (e.g. 'opi' for opioid study)",
+					),
+			]
+			prefixesAnswer = inq.prompt(prefixTypes)
+			prefixAnswer = prefixesAnswer['prefixTypes']
+			prefixConfirmation = {
+				inq.Confirm('prefixConfirmation',
+						message="You've entered " + Style.BRIGHT + Fore.BLUE + prefixAnswer + Style.RESET_ALL + " as the prefix. Is that correct?",
+					),
+			}
+			confirmationAnswer = inq.prompt(prefixConfirmation)
+			if confirmationAnswer['prefixConfirmation'] == True:
+				print("Raw Dicom Format Selection Confirmed.\n")
+				time.sleep(.5)
+				break
+			else:
+				raise ValueError("You did not confirm your selection. Please try again.")
+		except ValueError:
+				print("You did not confirm your selection. Please try again.")
+				time.sleep(1.5)
+				continue
+
 	#df = pd.read_csv("/PROJECTS/REHARRIS/studies.csv")
 	df = pd.read_csv("~/Desktop/studies.csv")
 	df2 = pd.DataFrame({"Study_Name":[nameAnswer],
 						"Raw_Path":[pathAnswer],
 						"Raw_Format":[rawAnswer],
-						"Last_Copied":""})
-	print(df2)
+						"Last_Copied":"",
+						"Prefix":[prefixAnswer]})
+	#print(df2)
 	df = df.append(df2, ignore_index=True)
-	print(df)
-	#df.to_csv('/PROJECTS/REHARRIS/studies.csv')
+	#print(df)
+	#df.to_csv('/PROJECTS/REHARRIS/studies.csv', index=False)
 	df.to_csv('~/Desktop/studies.csv', index=False)
-	print("Your study has been successfully added to the database!\nYou will now be redirected to the starting prompt.\n")
-	sleep(4)
+	print("\nYour study has been successfully added to the database!\nYou will now be redirected to the starting prompt...\n")
+	sleep(6)
 
-	return nameAnswer, pathAnswer, rawAnswer
+	return nameAnswer, pathAnswer, rawAnswer, 
+
+
+def getBIDSDir():
+	pass
 
 # 6. Make bidsify and copy into discrete functions (makes the script more robust and readable.)
-# ****** I'll have to modify the stuff in beforefmriprep01 and func_BIDS
+# ****** This will make use of the bidsmanager library. I will take all of the info that I've gathered
+# from the user, and then create a csv file with the necessary info for bidsmanager. That will include:
+# subject name, session, modality, full path to file, task (can be left blank for T1)
 
-def bidsify():
-	pass
+def bidsify(name, path, modality, format):
+	# go to the raw path for the selected study
+	os.chdir(path)
+	#read in the studies csv file
+
+	studies = pd.read_csv("~/Desktop/studies.csv")
+	#studies = pd.read_csv("/PROJECTS/REHARRIS/studies.csv")
+
+
+
+
 
 
 # make sure you check if the data has already been copied
@@ -343,19 +391,28 @@ def checkTimestamp():
 	pass
 
 
-rawStudyPaths = loadStudies()
+# get the info from the csv file
+rawStudyPaths, csv = loadStudies()
 
+# get the selcted study and its directory path
 selectedStudy, directory = selectStudy(rawStudyPaths)
+
+# get the modality
 modality = getModality(selectedStudy)
+
+# get the nifti format
 niftiFormat = getFormat()
-#if "raw" in niftiFormat:
-#	rawType()
 
-#data = [["opioid", "/PROJECTS/REHARRIS/opioid/RAW", "tgz", ""], ["explosiveSync", "/PROJECTS/REHARRIS/explosives/raw", "tgz", ""], ["bacpac", "/PROJECTS/bacpac/raw", "zip tgz", ""], ["bacpacBest", "/PROJECTS/bacpac/qa/best/BIDS", "dicom", ""], ["mapp2", "/PROJECTS/MAPP/MAPP2/SUBJECTS", "unknown", ""]]
 
-#df = pd.DataFrame(data, columns=['Study_Name', 'Raw_Path', 'Raw_Format', "Last_Copied"])
+bidsify(selectedStudy, directory, modality, niftiFormat)
 
-#df.to_csv('studies.csv)
+#print(csv)
+#print(selectedStudy)
+#print(directory)
+#print(modality)
+#print(niftiFormat)
+
+
 
 
 

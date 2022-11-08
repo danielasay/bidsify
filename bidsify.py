@@ -7,9 +7,11 @@
 # import necessary libraries`
 
 import inquirer as inq
+import datetime as dt
 import os
 import sys
 import time
+import csv as cv
 import pandas as pd
 import subprocess
 import shutil
@@ -34,8 +36,8 @@ from bidsmanager.write.dataset_writer import write_dataset
 # this function serves to load in the list of studies and their raw directories from the csv file stored on the server
 
 def loadStudies():
-	df = pd.read_csv("~/Desktop/studies.csv")
-	#df = pd.read_csv("/PROJECTS/REHARRIS/studies.csv")
+	#df = pd.read_csv("~/Desktop/studies.csv")
+	df = pd.read_csv("/PROJECTS/REHARRIS/studies.csv")
 	names = list(df['Study_Name'])
 	rawPaths = list(df['Raw_Path'])
 	pairs = dict(zip(names, rawPaths))
@@ -78,8 +80,8 @@ def selectStudy(studyPaths):
 			studyAnswer = "bacpacBest"
 		elif studyAnswer == "add new study":
 			addStudy()
-			os.system("python3 ~/Documents/Michigan/bidsify/bidsify.py")
-			#os.system("python3 ~/bidsify/bidsify.py")
+			#os.system("python3 ~/Documents/Michigan/bidsify/bidsify.py")
+			os.system("python3 ~/bidsify/bidsify.py")
 			sys.exit()
 		if validateRawDir(studyAnswer) == True:
 			break
@@ -341,8 +343,8 @@ def addStudy():
 				time.sleep(1.5)
 				continue
 
-	#df = pd.read_csv("/PROJECTS/REHARRIS/studies.csv")
-	df = pd.read_csv("~/Desktop/studies.csv")
+	df = pd.read_csv("/PROJECTS/REHARRIS/studies.csv")
+	#df = pd.read_csv("~/Desktop/studies.csv")
 	df2 = pd.DataFrame({"Study_Name":[nameAnswer],
 						"Raw_Path":[pathAnswer],
 						"Raw_Format":[rawAnswer],
@@ -351,13 +353,15 @@ def addStudy():
 	#print(df2)
 	df = df.append(df2, ignore_index=True)
 	#print(df)
-	#df.to_csv('/PROJECTS/REHARRIS/studies.csv', index=False)
-	df.to_csv('~/Desktop/studies.csv', index=False)
+	df.to_csv('/PROJECTS/REHARRIS/studies.csv', index=False)
+	#df.to_csv('~/Desktop/studies.csv', index=False)
 	print("\nYour study has been successfully added to the database!\nYou will now be redirected to the starting prompt...\n")
 	sleep(6)
 
-	return nameAnswer, pathAnswer, rawAnswer, 
+	return nameAnswer, pathAnswer, rawAnswer, prefixAnswer
 
+
+# get the desired BIDS dir from the user manually, or use the default of one step above the raw directory.
 
 def getBIDSDir():
 	pass
@@ -367,15 +371,74 @@ def getBIDSDir():
 # from the user, and then create a csv file with the necessary info for bidsmanager. That will include:
 # subject name, session, modality, full path to file, task (can be left blank for T1)
 
-def bidsify(name, path, modality, format):
+def bidsify(name, path, modality, niftiFormat):
+
+
 	# go to the raw path for the selected study
 	os.chdir(path)
 	#read in the studies csv file
+	studies = pd.read_csv("/PROJECTS/REHARRIS/studies.csv")
 
-	studies = pd.read_csv("~/Desktop/studies.csv")
-	#studies = pd.read_csv("/PROJECTS/REHARRIS/studies.csv")
+	# pull out all of the relevant information from the csv file and put it into individual variables
+
+	subset, prefix, rawDicomFormat = pullInfo(studies, name)
+
+	# get list of all the subjects that need to be run in the raw directory
+	subjects = []
+	for file in os.listdir():
+		if file.startswith(str(prefix)):
+			subjects.append(file)
 
 
+	# create the scaffold of the bids manager csv file
+	columns = ['subject', 'session', 'modality', 'file', 'task']
+
+	today = str(dt.date.today())
+
+	filename = f"bidsmanager_{name}_{today}.csv"
+
+	# create the csv file for bidsmanager
+
+	bidsCSV(filename, columns)
+
+    # read in the csv file as a pandas dataframe
+
+	bidsDF = pd.read_csv(filename)
+
+    # append all the subjects to the Subject_Name column
+
+	for sub in subjects:
+		bidsDF = bidsDF.append({'subject': sub}, ignore_index=True)
+
+
+	# add the session number to the bidsDir csv file. **** This will have to be updated manually if 
+	# someone wants something other than 1. 
+
+	bidsDF['session'] = '1'
+
+	print(bidsDF)
+
+	# insert the modality 
+
+# this function serves as a helper in bidsify() to pull the relevant information from the studies.csv file
+
+def pullInfo(csvFile, study):
+	subset = csvFile.loc[csvFile['Study_Name'] == study]
+	prefix = subset.iloc[0]['Prefix']
+	rawDicomFormat = subset.iloc[0]['Raw_Format']
+	return subset, prefix, rawDicomFormat
+
+# this function creates the csv file for bidsmanager
+
+# might have to turn this into a pandas dataframe that gets written as a csv file later.
+
+def bidsCSV(file, columns):
+	with open(file, 'w') as csvfile:
+		csvWriter = cv.writer(csvfile)
+		csvWriter.writerow(columns) 
+
+def addData(columnName, data):
+	pass
 
 
 

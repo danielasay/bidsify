@@ -101,17 +101,20 @@ def getModality(study):
 			modalities = [
 				inq.Checkbox('modalities',
 						message = "Which modalities would you like to bidsify from " + Style.BRIGHT + Fore.GREEN + study +  Style.RESET_ALL + "?",
-						choices = ['functional and fieldmaps', 'anatomical', 'diffusion', 'all'],
+						choices = ['functional and fieldmaps', 'anatomical', 'all'], #removing diffusion for now.
 					),
 			]
 			modalitiesAnswer = inq.prompt(modalities)
 			# this logic checks for the number of choices made. This is simply to make the data more easily displayable and readable by the user
 			if len(modalitiesAnswer['modalities']) == 1:
 				modalityAnswer = modalitiesAnswer['modalities'][0]
+				modalityLen = 1
 			elif len(modalitiesAnswer['modalities']) == 2:
 				modalityAnswer = modalitiesAnswer['modalities'][0] + " and " + modalitiesAnswer['modalities'][1]
+				modalityLen = 2
 			elif len(modalitiesAnswer['modalities']) == 3:
 				modalityAnswer = 'all'
+				modalityLen = 3
 			else:
 				continue
 			for mode in modalitiesAnswer['modalities']:
@@ -133,7 +136,14 @@ def getModality(study):
 				print("You did not confirm your selection. Please try again.")
 				time.sleep(1.5)
 				continue
-	return modalityAnswer
+	if modalityAnswer == 'all':
+		modalityAnswer = 'functional and fieldmaps and anatomical'
+#	finalAns = ""
+#	if "functional" in modalityAnswer:
+#		finalAns.append("bold")
+#	if "anatomical" in modalityAnswer:
+#		finalAns.append(",T1w")
+	return modalityAnswer, modalityLen
 
 # this function exists to validate that the chosen study has a valid raw directory to use.
 
@@ -316,7 +326,7 @@ def addStudy():
 				continue
 
 	# get the prefix for the subjects in the study
-
+	
 	while True:
 		try:
 			prefixTypes = [
@@ -333,7 +343,35 @@ def addStudy():
 			}
 			confirmationAnswer = inq.prompt(prefixConfirmation)
 			if confirmationAnswer['prefixConfirmation'] == True:
-				print("Raw Dicom Format Selection Confirmed.\n")
+				print("Study Prefix Confirmed.\n")
+				time.sleep(.5)
+				break
+			else:
+				raise ValueError("You did not confirm your selection. Please try again.")
+		except ValueError:
+				print("You did not confirm your selection. Please try again.")
+				time.sleep(1.5)
+				continue
+
+	# get the tasks for the study
+
+	while True:
+		try:
+			taskNames = [
+				inq.Text('taskNames',
+						message = "Please list all the fmri tasks in this study, separated by spaces (e.g. cuff visual rest1)",
+					),
+			]
+			tasksAnswer = inq.prompt(taskNames)
+			taskAnswer = tasksAnswer['taskNames']
+			taskConfirmation = {
+				inq.Confirm('taskConfirmation',
+						message="You've entered " + Style.BRIGHT + Fore.BLUE + taskAnswer + Style.RESET_ALL + " as the prefix. Is that correct?",
+					),
+			}
+			confirmationAnswer = inq.prompt(taskConfirmation)
+			if confirmationAnswer['taskConfirmation'] == True:
+				print("Study Tasks Entry Confirmed.\n")
 				time.sleep(.5)
 				break
 			else:
@@ -349,7 +387,8 @@ def addStudy():
 						"Raw_Path":[pathAnswer],
 						"Raw_Format":[rawAnswer],
 						"Last_Copied":"",
-						"Prefix":[prefixAnswer]})
+						"Prefix":[prefixAnswer],
+						"Tasks": [taskAnswer]})
 	#print(df2)
 	df = df.append(df2, ignore_index=True)
 	#print(df)
@@ -358,7 +397,7 @@ def addStudy():
 	print("\nYour study has been successfully added to the database!\nYou will now be redirected to the starting prompt...\n")
 	sleep(6)
 
-	return nameAnswer, pathAnswer, rawAnswer, prefixAnswer
+	return nameAnswer, pathAnswer, rawAnswer, prefixAnswer, taskAnswer
 
 
 # get the desired BIDS dir from the user manually, or use the default of one step above the raw directory.
@@ -371,7 +410,7 @@ def getBIDSDir():
 # from the user, and then create a csv file with the necessary info for bidsmanager. That will include:
 # subject name, session, modality, full path to file, task (can be left blank for T1)
 
-def bidsify(name, path, modality, niftiFormat):
+def bidsify(name, path, modality, niftiFormat, modalityLen):
 
 
 	# go to the raw path for the selected study
@@ -381,13 +420,15 @@ def bidsify(name, path, modality, niftiFormat):
 
 	# pull out all of the relevant information from the csv file and put it into individual variables
 
-	subset, prefix, rawDicomFormat = pullInfo(studies, name)
+	subset, prefix, rawDicomFormat, tasks= pullInfo(studies, name)
 
 	# get list of all the subjects that need to be run in the raw directory
 	subjects = []
 	for file in os.listdir():
 		if file.startswith(str(prefix)):
 			subjects.append(file)
+			subjects.sort()
+
 
 
 	# create the scaffold of the bids manager csv file
@@ -405,20 +446,39 @@ def bidsify(name, path, modality, niftiFormat):
 
 	bidsDF = pd.read_csv(filename)
 
-    # append all the subjects to the Subject_Name column
+    # append all the subjects to the subject column. This will append the subject several times,
+    # depending on if the user selected several modalities
 
-	for sub in subjects:
-		bidsDF = bidsDF.append({'subject': sub}, ignore_index=True)
+	subDF = subsAndModality(subjects, modality, path)
 
+	bidsDF = bidsDF.append(subDF, ignore_index=True)
 
 	# add the session number to the bidsDir csv file. **** This will have to be updated manually if 
 	# someone wants something other than 1. 
 
 	bidsDF['session'] = '1'
 
+
+	# now we will add the full path to each subject to the bidsDF dataframe using the path variable passed into the bidsify function
+
+	#subPaths = addFiles(subjects, path)
+
+	#bidsDF['file'] = subPaths
+
+	#bidsDF = bidsDF.append(fileDF, ignore_index=True)
+
 	print(bidsDF)
 
+	
 	# insert the modality 
+	# I think here I might want to create a dictionary that has each subject as the keys and the desired modalities
+	# as the values
+
+
+#	for i in range(subsNumber):
+		
+
+
 
 # this function serves as a helper in bidsify() to pull the relevant information from the studies.csv file
 
@@ -426,7 +486,8 @@ def pullInfo(csvFile, study):
 	subset = csvFile.loc[csvFile['Study_Name'] == study]
 	prefix = subset.iloc[0]['Prefix']
 	rawDicomFormat = subset.iloc[0]['Raw_Format']
-	return subset, prefix, rawDicomFormat
+	tasks = subset.iloc[0]['Tasks']
+	return subset, prefix, rawDicomFormat, tasks
 
 # this function creates the csv file for bidsmanager
 
@@ -437,8 +498,75 @@ def bidsCSV(file, columns):
 		csvWriter = cv.writer(csvfile)
 		csvWriter.writerow(columns) 
 
-def addData(columnName, data):
-	pass
+# this function will concatenates each subject with the path to the raw directory from that study. it returns a list.
+
+def addFiles(subjects, path):
+	subPaths = []
+	for sub in subjects:
+		newPath = "".join([path, "/", sub])
+		subPaths.append(newPath)
+	return subPaths
+
+
+# this function creates and returns a pandas dataframe with all of the subject and modality information. That dataframe gets appended
+# to the larger dataframe in bidsDF
+
+def subsAndModality(subjects, modality, path):
+	# if the user only wants functional data to be bidsified, then a dataframe of all the subjects and modality 'bold' is created
+	if modality == 'functional and fieldmaps':
+		modalityList = []
+		counter = 0
+		while counter < len(subjects):
+			modalityList.append('bold')
+			counter += 1
+		df = pd.DataFrame(subjects, columns=['subject'])
+		df['modality'] = modalityList
+		subPath = addFiles(subjects, path)
+		df['file'] = subPath
+		return df
+
+	# if the user only wants anatomical data to be bidsified, then a dataframe of all the subjects and modality 'T1w' is created
+	elif modality == 'anatomical':
+		modalityList = []
+		counter = 0
+		while counter < len(subjects):
+			modalityList.append('T1w')
+			counter += 1
+		df = pd.DataFrame(subjects, columns=['subject'])
+		df['modality'] = modalityList
+		subPath = addFiles(subjects, path)
+		df['file'] = subPath
+		return df
+
+	# if the user wants both functional and anatomical data to be bidsified, then a dataframe of all subjects with 'bold' immediately followed
+	# by all subjects with 'T1w' 
+	else: #get a list for bold
+		modalityListBold = []
+		counter = 0
+		while counter < len(subjects):
+			modalityListBold.append('bold')
+			counter += 1
+		df1 = pd.DataFrame(subjects, columns=['subject'])
+		df1['modality'] = modalityListBold
+		subPath = addFiles(subjects, path)
+		df1['file'] = subPath
+
+		modalityListAnat = [] # get list for anat
+		counter = 0
+		while counter < len(subjects):
+			modalityListAnat.append('T1w')
+			counter += 1
+		df2 = pd.DataFrame(subjects, columns=['subject'])
+		df2['modality'] = modalityListAnat
+		subPath = addFiles(subjects, path)
+		df2['file'] = subPath
+
+		# combine the two lists
+		df1 = df1.append(df2, ignore_index=True)
+
+
+		return df1
+
 
 
 
@@ -461,13 +589,13 @@ rawStudyPaths, csv = loadStudies()
 selectedStudy, directory = selectStudy(rawStudyPaths)
 
 # get the modality
-modality = getModality(selectedStudy)
+modality, modalityLen = getModality(selectedStudy)
 
 # get the nifti format
 niftiFormat = getFormat()
 
 
-bidsify(selectedStudy, directory, modality, niftiFormat)
+bidsify(selectedStudy, directory, modality, niftiFormat, modalityLen)
 
 #print(csv)
 #print(selectedStudy)

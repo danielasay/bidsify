@@ -21,7 +21,7 @@ from pprint import pprint
 from colorama import Fore
 from colorama import Style
 from time import sleep
-from bidsmanager.read import read_csv
+from bidsmanager.read import read_csv as read_data
 from bidsmanager.read.dicom_reader import read_dicom_directory
 from bidsmanager.write.dataset_writer import write_dataset
 
@@ -422,6 +422,10 @@ def bidsify(name, path, modality, niftiFormat, modalityLen):
 
 	subset, prefix, rawDicomFormat, tasks= pullInfo(studies, name)
 
+	taskList = tasks.split(' ')
+	for task in taskList:
+		print(task)
+
 	# get list of all the subjects that need to be run in the raw directory
 	subjects = []
 	for file in os.listdir():
@@ -449,36 +453,25 @@ def bidsify(name, path, modality, niftiFormat, modalityLen):
     # append all the subjects to the subject column. This will append the subject several times,
     # depending on if the user selected several modalities
 
-	subDF = subsAndModality(subjects, modality, path)
+    # the addInfo function is doing the bulk of the work here. 
 
-	bidsDF = bidsDF.append(subDF, ignore_index=True)
+	bidsDF = addInfo(bidsDF, subjects, modality, path, taskList)
+
 
 	# add the session number to the bidsDir csv file. **** This will have to be updated manually if 
 	# someone wants something other than 1. 
 
 	bidsDF['session'] = '1'
 
-
-	# now we will add the full path to each subject to the bidsDF dataframe using the path variable passed into the bidsify function
-
-	#subPaths = addFiles(subjects, path)
-
-	#bidsDF['file'] = subPaths
-
-	#bidsDF = bidsDF.append(fileDF, ignore_index=True)
-
-	print(bidsDF)
-
-	
-	# insert the modality 
-	# I think here I might want to create a dictionary that has each subject as the keys and the desired modalities
-	# as the values
+	# write the final dataframe to the csv file	
 
 
-#	for i in range(subsNumber):
-		
+	bidsDF.to_csv(filename, index=False)
 
+	## call the bidsmanager 
 
+	dataset = read_data(f'{path}/{filename}')
+	print(dataset)
 
 # this function serves as a helper in bidsify() to pull the relevant information from the studies.csv file
 
@@ -508,22 +501,25 @@ def addFiles(subjects, path):
 	return subPaths
 
 
-# this function creates and returns a pandas dataframe with all of the subject and modality information. That dataframe gets appended
+# this function creates and returns a pandas dataframe with all of the subject, modality and task information. That dataframe gets appended
 # to the larger dataframe in bidsDF
 
-def subsAndModality(subjects, modality, path):
+def addInfo(masterDF, subjects, modality, path, tasks):
 	# if the user only wants functional data to be bidsified, then a dataframe of all the subjects and modality 'bold' is created
 	if modality == 'functional and fieldmaps':
-		modalityList = []
-		counter = 0
-		while counter < len(subjects):
-			modalityList.append('bold')
-			counter += 1
-		df = pd.DataFrame(subjects, columns=['subject'])
-		df['modality'] = modalityList
-		subPath = addFiles(subjects, path)
-		df['file'] = subPath
-		return df
+		for task in tasks:
+			modalityList = []
+			counter = 0
+			while counter < len(subjects):
+				modalityList.append('bold')
+				counter += 1
+			df = pd.DataFrame(subjects, columns=['subject'])
+			df['modality'] = modalityList
+			subPath = addFiles(subjects, path)
+			df['file'] = subPath
+			df['task'] = task
+			masterDF = masterDF.append(df, ignore_index=True)
+		return masterDF
 
 	# if the user only wants anatomical data to be bidsified, then a dataframe of all the subjects and modality 'T1w' is created
 	elif modality == 'anatomical':
@@ -541,15 +537,18 @@ def subsAndModality(subjects, modality, path):
 	# if the user wants both functional and anatomical data to be bidsified, then a dataframe of all subjects with 'bold' immediately followed
 	# by all subjects with 'T1w' 
 	else: #get a list for bold
-		modalityListBold = []
-		counter = 0
-		while counter < len(subjects):
-			modalityListBold.append('bold')
-			counter += 1
-		df1 = pd.DataFrame(subjects, columns=['subject'])
-		df1['modality'] = modalityListBold
-		subPath = addFiles(subjects, path)
-		df1['file'] = subPath
+		for task in tasks:
+			modalityListBold = []
+			counter = 0
+			while counter < len(subjects):
+				modalityListBold.append('bold')
+				counter += 1
+			df1 = pd.DataFrame(subjects, columns=['subject'])
+			df1['modality'] = modalityListBold
+			subPath = addFiles(subjects, path)
+			df1['file'] = subPath
+			df1['task'] = task
+			masterDF = masterDF.append(df1, ignore_index=True)
 
 		modalityListAnat = [] # get list for anat
 		counter = 0
@@ -562,10 +561,10 @@ def subsAndModality(subjects, modality, path):
 		df2['file'] = subPath
 
 		# combine the two lists
-		df1 = df1.append(df2, ignore_index=True)
+		masterDF = masterDF.append(df2, ignore_index=True)
 
 
-		return df1
+		return masterDF
 
 
 

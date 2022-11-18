@@ -24,6 +24,7 @@ from time import sleep
 from bidsmanager.read import read_csv as read_data
 from bidsmanager.read.dicom_reader import read_dicom_directory
 from bidsmanager.write.dataset_writer import write_dataset
+import codecs
 
 
 # This script is a new version of the beforefmriprep scripts. 
@@ -152,6 +153,9 @@ def validateRawDir(study):
 			return False
 		else:
 			return True
+
+def validateDir():
+	pass
 
 
 
@@ -402,15 +406,58 @@ def addStudy():
 
 # get the desired BIDS dir from the user manually, or use the default of one step above the raw directory.
 
-def getBIDSDir():
-	pass
+def getBIDSDir(rawDirPath, study):
+	# get the user input for the desired BIDS directory
+	while True:
+		try:
+			bidsDir = [
+				inq.Text('bidsDir',
+						message = "Enter the full path to BIDS output directory. Press enter for default (one step above raw)",
+					),
+			]
+			pathAnswer = inq.prompt(bidsDir)
+			bidsAnswer = pathAnswer['bidsDir']
+			if not bidsAnswer:
+				bidsAnswer = 'default'
+			bidsConfirmation = {
+				inq.Confirm('bidsConfirmation',
+						message="You've entered " + Style.BRIGHT + Fore.BLUE + bidsAnswer + Style.RESET_ALL + " as the bids directory. Is that correct?",
+					),
+			}
+			confirmationAnswer = inq.prompt(bidsConfirmation)
+			if confirmationAnswer['bidsConfirmation'] == True:
+				print("BIDS Entry Confirmed.\n")
+				time.sleep(.5)
+				break
+			else:
+				raise ValueError("You did not confirm your selection. Please try again.")
+		except ValueError:
+				print("You did not confirm your selection. Please try again.")
+				time.sleep(1.5)
+				continue
+
+	if bidsAnswer == 'default':
+		counter = 0
+		slash = "/"
+		for char in reversed(rawDirPath):
+			if char != slash:
+				counter -= 1
+			else:
+				break
+		bidsAnswer = rawDirPath[:counter]
+		today = str(dt.date.today())
+		bidsAnswer = bidsAnswer + f"BIDS_{today}"
+		return bidsAnswer
+
+
+	
 
 # 6. Make bidsify and copy into discrete functions (makes the script more robust and readable.)
 # ****** This will make use of the bidsmanager library. I will take all of the info that I've gathered
 # from the user, and then create a csv file with the necessary info for bidsmanager. That will include:
 # subject name, session, modality, full path to file, task (can be left blank for T1)
 
-def bidsify(name, path, modality, niftiFormat, modalityLen):
+def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir):
 
 
 	# go to the raw path for the selected study
@@ -423,8 +470,6 @@ def bidsify(name, path, modality, niftiFormat, modalityLen):
 	subset, prefix, rawDicomFormat, tasks= pullInfo(studies, name)
 
 	taskList = tasks.split(' ')
-	for task in taskList:
-		print(task)
 
 	# get list of all the subjects that need to be run in the raw directory
 	subjects = []
@@ -468,10 +513,26 @@ def bidsify(name, path, modality, niftiFormat, modalityLen):
 
 	bidsDF.to_csv(filename, index=False)
 
-	## call the bidsmanager 
+	# convert the csv file to utf-16 encoding for bidsmanager
+
+	filename='manager_test.csv'
+
+	with codecs.open(filename, encoding = 'utf-8') as input_file:
+			with codecs.open(filename, "w", encoding="utf-16") as output_file:
+				shutil.copyfileobj(input_file, output_file)
+
+	## call the bidsmanager package to read the csv file
 
 	dataset = read_data(f'{path}/{filename}')
-	print(dataset)
+
+	# write the dataset to BIDS directory
+
+	dataset.set_path(bidsDir)
+
+	dataset.update()
+
+	dataset.write_dataset()
+	
 
 # this function serves as a helper in bidsify() to pull the relevant information from the studies.csv file
 
@@ -585,7 +646,7 @@ def checkTimestamp():
 rawStudyPaths, csv = loadStudies()
 
 # get the selcted study and its directory path
-selectedStudy, directory = selectStudy(rawStudyPaths)
+selectedStudy, rawDirectory = selectStudy(rawStudyPaths)
 
 # get the modality
 modality, modalityLen = getModality(selectedStudy)
@@ -593,8 +654,10 @@ modality, modalityLen = getModality(selectedStudy)
 # get the nifti format
 niftiFormat = getFormat()
 
+bidsDir = getBIDSDir(rawDirectory, selectedStudy)
 
-bidsify(selectedStudy, directory, modality, niftiFormat, modalityLen)
+
+bidsify(selectedStudy, rawDirectory, modality, niftiFormat, modalityLen, bidsDir)
 
 #print(csv)
 #print(selectedStudy)

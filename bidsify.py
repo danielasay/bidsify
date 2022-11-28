@@ -1,8 +1,8 @@
 #!/usr/bin/python
 # Created by: Daniel Asay 
-# Last edit: October 25th
+# Last edit: November 28th
 
-# the database aspect of this script may be more ambitious than is really feasible right now...
+
 
 # import necessary libraries`
 
@@ -21,9 +21,7 @@ from pprint import pprint
 from colorama import Fore
 from colorama import Style
 from time import sleep
-from bidsmanager.read import read_csv as read_data
-from bidsmanager.read.dicom_reader import read_dicom_directory
-from bidsmanager.write.dataset_writer import write_dataset
+import bidsconvert
 import codecs
 
 
@@ -465,6 +463,13 @@ def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir):
 	#read in the studies csv file
 	studies = pd.read_csv("/PROJECTS/REHARRIS/studies.csv")
 
+	if os.path.isdir(bidsDir) is False:
+		os.makedirs(bidsDir)
+
+	#print(niftiFormat)
+
+	
+	
 	# pull out all of the relevant information from the csv file and put it into individual variables
 
 	subset, prefix, rawDicomFormat, tasks= pullInfo(studies, name)
@@ -485,7 +490,7 @@ def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir):
 
 	today = str(dt.date.today())
 
-	filename = f"bidsmanager_{name}_{today}.csv"
+	filename = f"bidsconvert_{name}_{today}.csv"
 
 	# create the csv file for bidsmanager
 
@@ -513,25 +518,29 @@ def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir):
 
 	bidsDF.to_csv(filename, index=False)
 
-	# convert the csv file to utf-16 encoding for bidsmanager
+	with open(filename, 'r') as csvfile:
+		datareader = cv.reader(csvfile)
+		counter = 0
+		for row in datareader:
+			if counter == 0:
+				counter += 1
+				continue
+			bidsconvert.bidsify(row, bidsDir, niftiFormat)
 
-	filename='manager_test.csv'
+	# convert the csv file to utf-16 encoding for bidsconvert
 
-	with codecs.open(filename, encoding = 'utf-8') as input_file:
-			with codecs.open(filename, "w", encoding="utf-16") as output_file:
-				shutil.copyfileobj(input_file, output_file)
+#	with codecs.open(filename, encoding = 'utf-8') as input_file:
+#			with codecs.open(filename, "w", encoding="utf-16") as output_file:
+#				shutil.copyfileobj(input_file, output_file)
 
 	## call the bidsmanager package to read the csv file
 
-	dataset = read_data(f'{path}/{filename}')
+	#dataset = read_data(f'{path}/{filename}')
 
 	# write the dataset to BIDS directory
 
-	dataset.set_path(bidsDir)
+	# might have to consider doing a DIY for the actual bidsifying....
 
-	dataset.update()
-
-	dataset.write_dataset()
 	
 
 # this function serves as a helper in bidsify() to pull the relevant information from the studies.csv file
@@ -560,6 +569,7 @@ def addFiles(subjects, path):
 		newPath = "".join([path, "/", sub])
 		subPaths.append(newPath)
 	return subPaths
+
 
 
 # this function creates and returns a pandas dataframe with all of the subject, modality and task information. That dataframe gets appended
@@ -628,6 +638,12 @@ def addInfo(masterDF, subjects, modality, path, tasks):
 		return masterDF
 
 
+# this function will check the finished BIDS directory for any empty directories
+# It will print the list of empty directories out to the terminal and also
+# spit out a text file for future reference.
+
+def checkForEmptyBids():
+	pass
 
 
 

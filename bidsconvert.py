@@ -82,32 +82,52 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 				os.chdir(run)
 				if not createAndCopyJson(task, subject, modality, funcBidsDir):
 					print("json file not available in subject " + subject + "'s " + task + " directory... no raw dicoms")
+
+				# copy physio corrected run nifti file and bidsify
 				if "prun" in niftiFormat:
-					try:
-						shutil.copy(f"prun_{runNum}.nii", funcBidsDir)
-						newFileName = f"sub-{subject}-prun{runNum}_task-{task}_{modality}.nii"
-						os.rename(f"{funcBidsDir}/prun_{runNum}.nii", f"{funcBidsDir}/{newFileName}")
-						print("successfully bidsified prun file for subject " + subject)
-						time.sleep(.5)
-					except FileNotFoundError:
-						print("prun file does not exist for subject " + subject + " " + task)
-				if "regular" in niftiFormat:
-					try:
-						shutil.copy(f"run_{runNum}.nii", funcBidsDir)
-						newFileName = f"sub-{subject}-run{runNum}_task-{task}_{modality}.nii"
-						os.rename(f"{funcBidsDir}/run_{runNum}.nii", f"{funcBidsDir}/{newFileName}")
-						print("successfully bidsified regular run file for subject " + subject)
-						time.sleep(.5)
-					except FileNotFoundError:
-						print("regular run file does not exist for subject " + subject + " " + task)
-				if "raw" in niftiFormat:
-					if not createAndCopyJson(task, subject, modality, funcBidsDir):
-						print("raw dicoms not available for subject " + subject)
+					newFileName = f"sub-{subject}-prun{runNum}_task-{task}_{modality}.nii"
+					if not os.path.exists(f"{funcBidsDir}/{newFileName}"):
+						try:
+							shutil.copy(f"prun_{runNum}.nii", funcBidsDir)
+							newFileName = f"sub-{subject}-prun{runNum}_task-{task}_{modality}.nii"
+							os.rename(f"{funcBidsDir}/prun_{runNum}.nii", f"{funcBidsDir}/{newFileName}")
+							print("successfully bidsified prun file for subject " + subject)
+							time.sleep(.1)
+						except FileNotFoundError:
+							print("prun file does not exist for subject " + subject + " " + task)
 					else:
-						shutil.copy(f"sub-{subject}_task-{task}_{modality}.nii", funcBidsDir)
-						os.rename(f"{funcBidsDir}/sub-{subject}_task-{task}_{modality}.nii", f"{funcBidsDir}/sub-{subject}-raw{runNum}_task-{task}_{modality}.nii")
-						print("successfully bidsified raw dicom nifti file for subject " + subject)
-						time.sleep(.5)
+						print("prun file has already been bidsified for " + subject + " " + task)
+
+				# copy regular run nifti file and bidsify
+				if "regular" in niftiFormat:
+					newFileName = f"sub-{subject}-run{runNum}_task-{task}_{modality}.nii"
+					if not os.path.exists(f"{funcBidsDir}/{newFileName}"):
+						try:
+							shutil.copy(f"run_{runNum}.nii", funcBidsDir)
+							os.rename(f"{funcBidsDir}/run_{runNum}.nii", f"{funcBidsDir}/{newFileName}")
+							print("successfully bidsified regular run file for subject " + subject)
+							time.sleep(.1)
+						except FileNotFoundError:
+							print("regular run file does not exist for subject " + subject + " " + task)
+					else:
+						print("regular run file has already been bidsified for " + subject + " " + task)
+
+				# copy nifti file converted from raw dicoms and bidsify
+				if "raw" in niftiFormat:
+					if not os.path.exists(f"{funcBidsDir}/sub-{subject}-raw{runNum}_task-{task}_{modality}.nii"):
+						if not createAndCopyJson(task, subject, modality, funcBidsDir):
+							print("raw dicoms not available for subject " + subject)
+						else:
+							try:
+								shutil.copy(f"sub-{subject}_task-{task}_{modality}.nii", funcBidsDir)
+								os.rename(f"{funcBidsDir}/sub-{subject}_task-{task}_{modality}.nii", f"{funcBidsDir}/sub-{subject}-raw{runNum}_task-{task}_{modality}.nii")
+								print("successfully bidsified raw dicom nifti file for subject " + subject)
+								time.sleep(.1)
+							except FileNotFoundError:
+								print("dcm2niix_dev failed for subject " + subject + " " + task + ", which means no raw dicom nifti or json file.\nTry again manually in the terminal.")
+								time.sleep(3)
+					else:
+						print("nifti file converted from raw dicoms has already been bidsified for " + subject + " " + task)
 
 
 	elif modality == 'T1w':
@@ -136,30 +156,24 @@ def createAndCopyJson(task, subject, modality, jsonDestination):
 		if file.endswith(f'{modality}.json'):
 			shutil.copy(file, jsonDestination)
 			return True
-	if os.path.isdir("dicom"):
-		os.chdir("dicom")
-		jsonFiles = []
-		for file in os.listdir():
-			if file.endswith('.json'):
-				jsonFiles.append(file)
-		if not jsonFiles:
-			print("creating json file for " + subject + "..." + task)
+	if not os.path.isdir("dicom"):
+		dicomStatus = decompressDicoms(subject)
+		if dicomStatus is False:
+			return False
+		else:
+			os.chdir("dicom")
+			print("creating json file for " + subject + modality + task + "...")
 			dcm2niix(task, subject, modality)
 			os.chdir("..")
+			jsonFiles = []
 			for file in os.listdir():
 				if file.endswith('.json'):
 					jsonFiles.append(file)
 			for json in jsonFiles:
 				shutil.copy(json, jsonDestination)
-		else:
-			for json in jsonFiles:
-				shutil.copy(json, jsonDestination)
-		return True
-	else:
-		if not decompressDicoms(subject):
-			return False
-		else:
-			createAndCopyJson(task, subject, modality, jsonDestination)
+				print("making it here")
+			return True
+
 
 def decompressDicoms(subject):
 	dicomFiles = []
@@ -169,6 +183,8 @@ def decompressDicoms(subject):
 
 	if not dicomFiles:
 		return False
+
+	print("decompressing dicom files...")
 
 	for dicom in dicomFiles:
 		if dicom.endswith(".tgz"):
@@ -192,7 +208,10 @@ def dcm2niix(taskName, subjectName, modality):
 	 					-z n \
 	 					."
 		proc1 = subprocess.Popen(dcm2niix, shell=True, stdout=subprocess.PIPE)
-		proc1.wait()
+		try:
+			proc1.wait()
+		except:
+			print("dcm2niix_dev picked up an error for subject " + subjectName + " " + taskName + ".\nTry running it manually in the terminal.")
 	elif modality == "T1w":
 		dcm2niix = f"dcm2niix_dev \
 	 					-o ../ \
@@ -222,33 +241,37 @@ def renameFile(self, task, newRun, run, subDir, subName):
 	os.rename(f"{run}.nii", f"sub-{subName}" + "_task-" + f"{task}" + f"{newRun}" + "_bold.nii")
 
 
-#		for sub in subjects:
-#			rawSubDir = raw_directory + sub + "/func"
-#			newSub = sub.replace('_', '')
-#			bidsSubDir = bids_directory + f"sub-{newSub}" + "/func"
-#			os.chdir(rawSubDir)
-#			for task in os.listdir():
-#				if task == "fieldmaps":
-#					continue
-#				os.chdir(task)
-#				for run in os.listdir():
-#					os.chdir(run)
-#					newRun = run.replace('_', '')
-#					workingDir = os.getcwd()
-#					if checkIfCopied(task, newRun, bidsSubDir) is False:
-#						os.chdir(workingDir)
-#						print("copying " + sub + task + run + " to BIDS directory...")
-#						print(os.getcwd())
-#						shutil.copy(f"{run}.nii", bidsSubDir)
-#						print("renaming to be in BIDS format...")
-#						renameFile(task, newRun, run, bidsSubDir, newSub)
-#						os.chdir(rawSubDir + f"/{task}")
-#					else:
-#						print(sub + task + run + " has already been copied to BIDS folder")
-#						os.chdir(rawSubDir + f"/{task}")
-#					os.chdir(rawSubDir + f"/{task}")	#
-
-#				os.chdir(rawSubDir)
+#def createAndCopyJson(task, subject, modality, jsonDestination):
+#	for file in os.listdir():
+#		if file.endswith(f'{modality}.json'):
+#			shutil.copy(file, jsonDestination)
+#			return True
+#	if os.path.isdir("dicom"):
+#		os.chdir("dicom")
+#		jsonFiles = []
+#		for file in os.listdir():
+#			if file.endswith('.json'):
+#				jsonFiles.append(file)
+#		if not jsonFiles:
+#			print("creating json file for " + subject + "..." + task)
+#			dcm2niix(task, subject, modality)
+#			os.chdir("..")
+#			for file in os.listdir():
+#				if file.endswith('.json'):
+#					jsonFiles.append(file)
+#			for json in jsonFiles:
+#				shutil.copy(json, jsonDestination)
+#			print("making it here")
+#			return True
+#		else:
+#			for json in jsonFiles:
+#				shutil.copy(json, jsonDestination)
+#			return True
+#	else:
+#		if not decompressDicoms(subject):
+#			return False
+#		else:
+#			createAndCopyJson(task, subject, modality, jsonDestination)
 
 
 

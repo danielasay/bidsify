@@ -169,7 +169,7 @@ def getFormat():
 			formats = [
 				inq.Checkbox('formats',
 						message = "Choose from the following formats:",
-						choices = ['prun nifti files', 'regular run nifti files', 'niftis converted from raw dicoms', 'all'],
+						choices = ['prun nifti files', 'regular run nifti files', 'niftis converted from raw dicoms'], # removed 'all' option for now
 					),
 			]
 			formatsAnswer = inq.prompt(formats)
@@ -179,7 +179,7 @@ def getFormat():
 			elif len(formatsAnswer['formats']) == 2:
 				formatAnswer = formatsAnswer['formats'][0] + " and " + formatsAnswer['formats'][1]
 			elif len(formatsAnswer['formats']) == 3:
-				formatAnswer = 'all'
+				formatAnswer = formatsAnswer['formats'][0] + " and " + formatsAnswer['formats'][1] + " and " + formatsAnswer['formats'][2]
 			else:
 				continue
 			for form in formatsAnswer['formats']:

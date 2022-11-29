@@ -12,6 +12,7 @@ import pprint
 import shutil
 import sys
 import subprocess
+import time
 
 
 BIDS_dir = "/PROJECTS/bacpac/bacpac_BIDS/"
@@ -45,7 +46,16 @@ def getSubs(self, raw_directory):
 	return subs
 
 def parseNiftiInfo(niftiInfo):
-	
+	niftiFormat = ""
+	if "prun" in niftiInfo:
+		niftiFormat += "prun "
+	if "regular" in niftiInfo:
+		niftiFormat += "run01 "
+	if "raw" in niftiInfo:
+		niftiFormat += "raw "
+	niftiFormat = niftiFormat[:-1]
+	return niftiFormat
+
 
 
 # This function will go through each subject in the list, go into each functional task directory,
@@ -54,7 +64,7 @@ def parseNiftiInfo(niftiInfo):
 
 
 def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
-	#niftiInfo = parseNiftiInfo(niftiFormat)
+	desiredNifti = parseNiftiInfo(niftiFormat)
 	if modality == 'bold':
 		funcBidsDir = "".join([bidsDir, "/sub-", subject, "/func"])
 		try:
@@ -68,9 +78,37 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 			os.chdir(taskPath)
 			runs = os.listdir()
 			for run in runs:
+				runNum = run[-2:]
 				os.chdir(run)
 				if not createAndCopyJson(task, subject, modality, funcBidsDir):
 					print("json file not available in subject " + subject + "'s " + task + " directory... no raw dicoms")
+				if "prun" in niftiFormat:
+					try:
+						shutil.copy(f"prun_{runNum}.nii", funcBidsDir)
+						newFileName = f"sub-{subject}-prun{runNum}_task-{task}_{modality}.nii"
+						os.rename(f"{funcBidsDir}/prun_{runNum}.nii", f"{funcBidsDir}/{newFileName}")
+						print("successfully bidsified prun file for subject " + subject)
+						time.sleep(.5)
+					except FileNotFoundError:
+						print("prun file does not exist for subject " + subject + " " + task)
+				if "regular" in niftiFormat:
+					try:
+						shutil.copy(f"run_{runNum}.nii", funcBidsDir)
+						newFileName = f"sub-{subject}-run{runNum}_task-{task}_{modality}.nii"
+						os.rename(f"{funcBidsDir}/run_{runNum}.nii", f"{funcBidsDir}/{newFileName}")
+						print("successfully bidsified regular run file for subject " + subject)
+						time.sleep(.5)
+					except FileNotFoundError:
+						print("regular run file does not exist for subject " + subject + " " + task)
+				if "raw" in niftiFormat:
+					if not createAndCopyJson(task, subject, modality, funcBidsDir):
+						print("raw dicoms not available for subject " + subject)
+					else:
+						shutil.copy(f"sub-{subject}_task-{task}_{modality}.nii", funcBidsDir)
+						os.rename(f"{funcBidsDir}/sub-{subject}_task-{task}_{modality}.nii", f"{funcBidsDir}/sub-{subject}-raw{runNum}_task-{task}_{modality}.nii")
+						print("successfully bidsified raw dicom nifti file for subject " + subject)
+						time.sleep(.5)
+
 
 	elif modality == 'T1w':
 		anatBidsDir = "".join([bidsDir, "/", subject, "/anat"])
@@ -105,7 +143,7 @@ def createAndCopyJson(task, subject, modality, jsonDestination):
 			if file.endswith('.json'):
 				jsonFiles.append(file)
 		if not jsonFiles:
-			print("creating json file for " + subject + "...")
+			print("creating json file for " + subject + "..." + task)
 			dcm2niix(task, subject, modality)
 			os.chdir("..")
 			for file in os.listdir():
@@ -145,7 +183,43 @@ def decompressDicoms(subject):
 			return True
 
 
+def dcm2niix(taskName, subjectName, modality):
+	if modality == "bold":
+		dcm2niix = f"dcm2niix_dev \
+	 					-o ../ \
+	 					-x n \
+	 					-f sub-{subjectName}_task-{taskName}_{modality} \
+	 					-z n \
+	 					."
+		proc1 = subprocess.Popen(dcm2niix, shell=True, stdout=subprocess.PIPE)
+		proc1.wait()
+	elif modality == "T1w":
+		dcm2niix = f"dcm2niix_dev \
+	 					-o ../ \
+	 					-x n \
+	 					-f sub-{subjectName}_{modality} \
+	 					-z n \
+	 					."
+		proc2 = subprocess.Popen(dcm2niix, shell=True, stdout=subprocess.PIPE)
+		proc2.wait()
 
+
+# This function will check if the run_01.nii file for a particular tasks and run have already been copied over to the 
+# subject's BIDS directory.
+
+def checkIfCopied(self, task, run, bids_directory):
+	os.chdir(bids_directory)
+	files = os.listdir()
+	for file in files:
+		if task in file and run in file and file.endswith(".nii"):
+			return True
+	return False
+
+# This function renames the copied run_01.nii file to be in BIDS format
+
+def renameFile(self, task, newRun, run, subDir, subName):
+	os.chdir(subDir)
+	os.rename(f"{run}.nii", f"sub-{subName}" + "_task-" + f"{task}" + f"{newRun}" + "_bold.nii")
 
 
 #		for sub in subjects:
@@ -175,49 +249,6 @@ def decompressDicoms(subject):
 #					os.chdir(rawSubDir + f"/{task}")	#
 
 #				os.chdir(rawSubDir)
-
-
-
-def dcm2niix(taskName, subjectName, modality):
-	if modality == "bold":
-		dcm2niix = f"dcm2niix_dev \
-	 					-o ../ \
-	 					-x n \
-	 					-f sub-{subjectName}_task-{taskName}_{modality} \
-	 					-z n \
-	 					."
-		proc1 = subprocess.Popen(dcm2niix, shell=True, stdout=subprocess.PIPE)
-		proc1.wait()
-	elif modality == "T1w":
-				dcm2niix = f"dcm2niix_dev \
-	 					-o ../ \
-	 					-x n \
-	 					-f sub-{subjectName}_{modality} \
-	 					-z n \
-	 					."
-		proc2 = subprocess.Popen(dcm2niix, shell=True, stdout=subprocess.PIPE)
-		proc2.wait()
-
-
-# This function will check if the run_01.nii file for a particular tasks and run have already been copied over to the 
-# subject's BIDS directory.
-
-def checkIfCopied(self, task, run, bids_directory):
-	os.chdir(bids_directory)
-	files = os.listdir()
-	for file in files:
-		if task in file and run in file and file.endswith(".nii"):
-			return True
-	return False
-
-# This function renames the copied run_01.nii file to be in BIDS format
-
-def renameFile(self, task, newRun, run, subDir, subName):
-	os.chdir(subDir)
-	os.rename(f"{run}.nii", f"sub-{subName}" + "_task-" + f"{task}" + f"{newRun}" + "_bold.nii")
-
-
-
 
 
 

@@ -241,39 +241,6 @@ def renameFile(self, task, newRun, run, subDir, subName):
 	os.rename(f"{run}.nii", f"sub-{subName}" + "_task-" + f"{task}" + f"{newRun}" + "_bold.nii")
 
 
-#def createAndCopyJson(task, subject, modality, jsonDestination):
-#	for file in os.listdir():
-#		if file.endswith(f'{modality}.json'):
-#			shutil.copy(file, jsonDestination)
-#			return True
-#	if os.path.isdir("dicom"):
-#		os.chdir("dicom")
-#		jsonFiles = []
-#		for file in os.listdir():
-#			if file.endswith('.json'):
-#				jsonFiles.append(file)
-#		if not jsonFiles:
-#			print("creating json file for " + subject + "..." + task)
-#			dcm2niix(task, subject, modality)
-#			os.chdir("..")
-#			for file in os.listdir():
-#				if file.endswith('.json'):
-#					jsonFiles.append(file)
-#			for json in jsonFiles:
-#				shutil.copy(json, jsonDestination)
-#			print("making it here")
-#			return True
-#		else:
-#			for json in jsonFiles:
-#				shutil.copy(json, jsonDestination)
-#			return True
-#	else:
-#		if not decompressDicoms(subject):
-#			return False
-#		else:
-#			createAndCopyJson(task, subject, modality, jsonDestination)
-
-
 
 
 

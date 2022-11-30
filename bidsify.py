@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # Created by: Daniel Asay 
-# Last edit: November 28th
+# Last edit: November 30th
 
 
 
@@ -152,8 +152,11 @@ def validateRawDir(study):
 		else:
 			return True
 
-def validateDir():
-	pass
+def validateDir(path):
+	if not os.path.isdir(path):
+		return False
+	else:
+		return True
 
 
 
@@ -168,7 +171,7 @@ def getFormat():
 		try:
 			formats = [
 				inq.Checkbox('formats',
-						message = "Choose from the following formats:",
+						message = "Choose from the following formats",
 						choices = ['prun nifti files', 'regular run nifti files', 'niftis converted from raw dicoms'], # removed 'all' option for now
 					),
 			]
@@ -297,6 +300,9 @@ def addStudy():
 			print("You did not confirm your selection. Please try again.")
 			time.sleep(1.5)
 			continue
+		if not validateDir(pathAnswer):
+			print("It looks like the path you entered does not exist.\nVerify the path's existence and run the script again.")
+			sys.exit()
 
 	# get the format that the new study's dicoms come in
 
@@ -463,13 +469,8 @@ def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir):
 	#read in the studies csv file
 	studies = pd.read_csv("/PROJECTS/REHARRIS/studies.csv")
 
-	if os.path.isdir(bidsDir) is False:
-		os.makedirs(bidsDir)
-
-	#print(niftiFormat)
-
-	
-	
+	today = str(dt.date.today())
+		
 	# pull out all of the relevant information from the csv file and put it into individual variables
 
 	subset, prefix, rawDicomFormat, tasks= pullInfo(studies, name)
@@ -483,16 +484,35 @@ def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir):
 			subjects.append(file)
 			subjects.sort()
 
+## Check to see if there are any new subjects to run. If not, kill the script.
+	
+	bidsAnswer, mostRecentBids, newSubs = addNewSubjects(path, subjects, name)
+
+	if bidsAnswer == 'add new subjects to existing BIDS directory':
+		bidsDir = f'BIDS_{mostRecentBids}'
+		os.rename(bidsDir, f'BIDS_{today}')
+		subjects = newSubs
+	else:
+		if os.path.isdir(bidsDir) is False:
+			os.makedirs(bidsDir)
+
+	# print all messages both to stdout and logfile
+
+	if os.path.isdir(f"{rawDirectory}/bidslogs") is False:
+		os.makedirs(f"{rawDirectory}/bidslogs")
+	today = str(dt.date.today())
+
+	f = open(f'{rawDirectory}/bidslogs/logfile_{today}.txt', 'w')
+	backup = sys.stdout
+	sys.stdout = Tee(sys.stdout, f)
 
 
 	# create the scaffold of the bids manager csv file
 	columns = ['subject', 'session', 'modality', 'file', 'task']
 
-	today = str(dt.date.today())
-
 	filename = f"bidsconvert_{name}_{today}.csv"
 
-	# create the csv file for bidsmanager
+	# create the csv file for bidsconvert
 
 	bidsCSV(filename, columns)
 
@@ -507,14 +527,12 @@ def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir):
 
 	bidsDF = addInfo(bidsDF, subjects, modality, path, taskList)
 
-
 	# add the session number to the bidsDir csv file. **** This will have to be updated manually if 
 	# someone wants something other than 1. 
 
 	bidsDF['session'] = '1'
 
 	# write the final dataframe to the csv file	
-
 
 	bidsDF.to_csv(filename, index=False)
 
@@ -527,21 +545,105 @@ def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir):
 				continue
 			bidsconvert.bidsify(row, bidsDir, niftiFormat)
 
-	# convert the csv file to utf-16 encoding for bidsconvert
-
-#	with codecs.open(filename, encoding = 'utf-8') as input_file:
-#			with codecs.open(filename, "w", encoding="utf-16") as output_file:
-#				shutil.copyfileobj(input_file, output_file)
-
-	## call the bidsmanager package to read the csv file
-
-	#dataset = read_data(f'{path}/{filename}')
-
-	# write the dataset to BIDS directory
-
-	# might have to consider doing a DIY for the actual bidsifying....
-
 	
+
+# this function checks if a BIDS directory already exists for a given study. If it does, it compares the date of the most recent BIDS to
+# today's date. If the dates are different, it will get a list of all the subjects in the most recent BIDS directory and return the list
+
+def addNewSubjects(path, subjects, studyName):
+	# go into the study's main directory and see if and BIDS directories exist. If not, return 0's and proceed with bidsifying
+	os.chdir(f"{path}/..")
+	today = dt.date.today()
+	bidsDirs = []
+	for file in os.listdir():
+		if file.startswith('BIDS_20'):
+			bidsDirs.append(file)
+	if not bidsDirs:
+		return 0, 0, 0
+
+	# if there are BIDS directories, find the most recent one, go into the directory and get a list of all the subjects.
+	# that list will be used for a comparison later.
+	bidsDates = []
+	for bids in bidsDirs:
+		date = bids[5:]
+		date_object = dt.datetime.strptime(date, '%Y-%m-%d').date()
+		bidsDates.append(date_object)
+	mostRecent = str(max(bidsDates))
+	strToday = str(today)
+	if mostRecent == strToday:
+		print(f"{studyName} was at least partially bidsified today.\nIf you'd like to start from scratch, delete the BIDS_{strToday} directory.\nResuming program...")
+		time.sleep(15)
+	os.chdir(f"BIDS_{mostRecent}")
+	prevSubs = []
+	for file in os.listdir():
+		if file.startswith('sub-'):
+			prevSubs.append(file)
+	prevSubs.sort()
+
+	# compare the list of subjects from most recent BIDS directory with the list of subjects given from study csv file.
+	# 
+	prevSubsNew = [sub[4:] for sub in prevSubs]
+	newSubs = []
+	for element in subjects:
+		if element not in prevSubsNew:
+			newSubs.append(element)
+	numNewSubs = len(newSubs)
+
+	# if there are no new subjects, ask the user if they would like to re-bidsify.
+
+	if numNewSubs == 0:
+		print(f"{studyName} was bidsified on {mostRecent} and 0 new subs have been added to the raw directory.")
+		zeroNewConfirmation = {
+		inq.Confirm('zeroNewConfirmation',
+				message="Would you like to re-bidsify?",
+			),
+		}
+		confirmationAnswer = inq.prompt(zeroNewConfirmation)
+		if confirmationAnswer['zeroNewConfirmation'] == True:
+			print("Bidsify Selection Confirmed. Re-bidsifying...\n")
+			time.sleep(.5)
+			return "", "", ""
+		else:
+			print("Bidsify Selection Confirmed. Will not re-bidsify. Exiting program...")
+			time.sleep(2)
+			sys.exit()
+
+	else:
+	# ask user if they would like to re-bidsify subjects or add new subs to previously bidsified and update the date
+	
+		while True:
+			print("*****PLEASE SELECT JUST ONE RESPONSE*****\n")
+			print(f"{studyName} was bidsified on {mostRecent}. {numNewSubs} new subs are in the raw directory.")
+			try:
+				bidsOptions = [
+					inq.Checkbox('bidsOptions',
+							message = "How would you like to proceed?",
+							choices = ['add new subjects to existing BIDS directory', 're-bidsify all subjects'],
+						),
+				]
+				bidssAnswer = inq.prompt(bidsOptions)
+				bidsAnswer = bidssAnswer['bidsOptions']
+				if 're-bidsify' in bidsAnswer and 'existing' in bidsAnswer:
+					print("You selected more than one answer. Please select only one.")
+					continue
+				bidsConfirmation = {
+					inq.Confirm('bidsConfirmation',
+							message="You've selected " + Style.BRIGHT + Fore.BLUE + bidsAnswer + Style.RESET_ALL + ". Is that correct?",
+						),
+				}
+				confirmationAnswer = inq.prompt(bidsConfirmation)
+				if confirmationAnswer['bidsConfirmation'] == True:
+					print("Bidsify Selection Confirmed.\n")
+					time.sleep(.5)
+					break
+				else:
+					raise ValueError("You did not confirm your selection. Please try again.")
+			except ValueError:
+					print("You did not confirm your selection. Please try again.")
+					time.sleep(1.5)
+					continue	
+
+		return bidsAnswer, mostRecent, newSubs
 
 # this function serves as a helper in bidsify() to pull the relevant information from the studies.csv file
 
@@ -561,7 +663,7 @@ def bidsCSV(file, columns):
 		csvWriter = cv.writer(csvfile)
 		csvWriter.writerow(columns) 
 
-# this function will concatenates each subject with the path to the raw directory from that study. it returns a list.
+# this function concatenates each subject with the path to the raw directory from that study. it returns a list.
 
 def addFiles(subjects, path):
 	subPaths = []
@@ -571,6 +673,12 @@ def addFiles(subjects, path):
 	return subPaths
 
 
+# this function will prepend a specified string to every element in a given list
+
+def prepend(array, str):
+	str += '{0}'
+	newList = [str.format(i) for i in array]
+	return(newList)
 
 # this function creates and returns a pandas dataframe with all of the subject, modality and task information. That dataframe gets appended
 # to the larger dataframe in bidsDF
@@ -642,14 +750,30 @@ def addInfo(masterDF, subjects, modality, path, tasks):
 # It will print the list of empty directories out to the terminal and also
 # spit out a text file for future reference.
 
-def checkForEmptyBids():
-	pass
+def checkForEmptyBids(bidsDir):
+	os.chdir(bidsDir)
+	emptyDirs = []
+	for directory in os.listdir():
+		dirSize = get_dir_size(directory)
+		if dirSize == 0:
+			print(f"BIDS folder for {directory} is empty. check before running a BIDS app.")
+			emptyDirs.append(file)
+	with open('empty_directories.txt', 'w') as empty:
+		for line in lines:
+			empty.write(f"{line}\n")
 
 
+# calculate the size of a given directory
 
-# make sure you check if the data has already been copied
-def copyData():
-	pass
+def getDirSize(path='.'):
+	total = 0
+	with os.scandir(path) as it:
+		for entry in it:
+			if entry.is_file():
+				total += entry.stat().st_size
+			elif entry.is_dir():
+				total += get_dir_size(entry.path)
+	return total
 
 # 7. Check timestamp in database and compare to timestamp of data in raw, running only the subjects that have been added since last qc run.
 # ****** this is an internal feature/function to be imbedded in the bidsify and copy functions mentioned above.
@@ -657,6 +781,14 @@ def copyData():
 def checkTimestamp():
 	pass
 
+# this class serves to print prompts to terminal and also save it in a logfile
+
+class Tee(object):
+	def __init__(self, *files):
+		self.files = files
+	def write(self, obj):
+		for f in self.files:
+			f.write(obj)
 
 # get the info from the csv file
 rawStudyPaths, csv = loadStudies()
@@ -672,14 +804,11 @@ niftiFormat = getFormat()
 
 bidsDir = getBIDSDir(rawDirectory, selectedStudy)
 
-
 bidsify(selectedStudy, rawDirectory, modality, niftiFormat, modalityLen, bidsDir)
 
-#print(csv)
-#print(selectedStudy)
-#print(directory)
-#print(modality)
-#print(niftiFormat)
+checkForEmptyBids(bidsDir)
+
+sys.stdout = backup
 
 
 

@@ -97,6 +97,7 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 							print("prun file does not exist for subject " + subject + " " + task)
 					else:
 						print("prun file has already been bidsified for " + subject + " " + task)
+				os.chdir("..")
 
 				# copy regular run nifti file and bidsify
 				if "regular" in niftiFormat:
@@ -171,7 +172,6 @@ def createAndCopyJson(task, subject, modality, jsonDestination):
 					jsonFiles.append(file)
 			for json in jsonFiles:
 				shutil.copy(json, jsonDestination)
-				print("making it here")
 			return True
 
 

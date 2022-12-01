@@ -28,6 +28,7 @@ def bidsify(data, bidsDir, niftiFormat):
 	subPath = data[3]
 	task = data[4]
 	print("\nbidsifying data for subject " + subject + " " + modality  + " " + task + "...\n")
+	time.sleep(2.5)
 	copyData(subject, modality, subPath, task, bidsDir, niftiFormat)
 
 
@@ -77,6 +78,7 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 		taskPath = "".join([subDir, "/", "func", "/", task])
 		if not os.path.isdir(taskPath):
 			print(subject + " does not have a " + task + " directory. Moving to next subject.")
+			time.sleep(5)
 		else:
 			os.chdir(taskPath)
 			runs = os.listdir()
@@ -85,6 +87,7 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 				os.chdir(run)
 				if not createAndCopyJson(task, subject, modality, funcBidsDir):
 					print("json file not available in subject " + subject + "'s " + task + " directory... no raw dicoms")
+					time.sleep(4)
 
 				# copy physio corrected run nifti file and bidsify
 				if "prun" in niftiFormat:
@@ -98,9 +101,11 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 							time.sleep(.8)
 						except FileNotFoundError:
 							print("prun file does not exist for subject " + subject + " " + task)
+							time.sleep(6)
 					else:
 						print("prun file has already been bidsified for " + subject + " " + task)
-				os.chdir("..")
+						time.sleep(6)
+				
 
 				# copy regular run nifti file and bidsify
 				if "regular" in niftiFormat:
@@ -113,14 +118,17 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 							time.sleep(.8)
 						except FileNotFoundError:
 							print("regular run file does not exist for subject " + subject + " " + task)
+							time.sleep(.8)
 					else:
 						print("regular run file has already been bidsified for " + subject + " " + task)
+						time.sleep(.8)
 
 				# copy nifti file converted from raw dicoms and bidsify
 				if "raw" in niftiFormat:
 					if not os.path.exists(f"{funcBidsDir}/sub-{subject}-raw{runNum}_task-{task}_{modality}.nii"):
 						if not createAndCopyJson(task, subject, modality, funcBidsDir):
 							print("raw dicoms not available for subject " + subject)
+							time.sleep(.8)
 						else:
 							try:
 								shutil.copy(f"sub-{subject}_task-{task}_{modality}.nii", funcBidsDir)
@@ -132,7 +140,9 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 								time.sleep(8)
 					else:
 						print("nifti file converted from raw dicoms has already been bidsified for " + subject + " " + task)
+						time.sleep(.8)
 
+				os.chdir("..")
 		# copy over the fieldmaps to the BIDS dir
 		fmapBidsDir = "".join([bidsDir, "/sub-", subject, "/fmap"])
 		try:
@@ -188,10 +198,12 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 		anatPath = "".join([subDir, "/anatomy/t1spgr_208sl"])
 		if not os.path.isdir():
 			print(subject + " does not have an anatomy directory.")
+			time.sleep(.8)
 		else:
 			os.chdir(anatPath)
 			if not createAndCopyJson("none", subject, modality, anatBidsDir):
 				print("json file not available in subject " + subject + "'s anatomy directory... no raw dicoms")
+				time.sleep(.8)
 			shutil.copy(f"sub-{subjectName}_{modality}.nii", anatBidsDir)
 				
 
@@ -212,6 +224,7 @@ def createAndCopyJson(task, subject, modality, jsonDestination):
 	else:
 		os.chdir("dicom")
 		print(f"creating json file for {subject} {modality} {task}...")
+		time.sleep(.8)
 		dcm2niix(task, subject, modality)
 		os.chdir("..")
 		jsonFiles = []
@@ -261,6 +274,7 @@ def dcm2niix(taskName, subjectName, modality):
 			proc1.wait()
 		except:
 			print("dcm2niix_dev picked up an error for subject " + subjectName + " " + taskName + ".\nTry running it manually in the terminal.")
+			time.sleep(10)
 	elif modality == "T1w":
 		dcm2niix = f"dcm2niix_dev \
 	 					-o ../ \

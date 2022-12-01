@@ -100,7 +100,7 @@ def getModality(study):
 			modalities = [
 				inq.Checkbox('modalities',
 						message = "Which modalities would you like to bidsify from " + Style.BRIGHT + Fore.GREEN + study +  Style.RESET_ALL + "?",
-						choices = ['functional and fieldmaps', 'anatomical', 'all'], #removing diffusion for now.
+						choices = ['functional and fieldmaps', 'anatomical'], #removing diffusion and all for now.
 					),
 			]
 			modalitiesAnswer = inq.prompt(modalities)

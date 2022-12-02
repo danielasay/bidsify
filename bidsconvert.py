@@ -14,6 +14,8 @@ import sys
 import subprocess
 import time
 import json as js
+from colorama import Fore
+from colorama import Style
 
 
 BIDS_dir = "/PROJECTS/bacpac/bacpac_BIDS/"
@@ -27,7 +29,7 @@ def bidsify(data, bidsDir, niftiFormat):
 	modality = data[2]
 	subPath = data[3]
 	task = data[4]
-	print("\nbidsifying data for subject " + subject + " " + modality  + " " + task + "...\n")
+	print("\n" + Style.BRIGHT + Fore.BLUE + "bidsifying data for subject " + subject + " " + modality  + " " + task + "...\n" + Style.RESET_ALL)
 	time.sleep(2.5)
 	copyData(subject, modality, subPath, task, bidsDir, niftiFormat)
 
@@ -143,6 +145,9 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 						time.sleep(.8)
 
 				os.chdir("..")
+
+		# update this so that it goes into every single Fmap directory. The names of those directories may not line up exactly with the 
+		# task names
 		# copy over the fieldmaps to the BIDS dir
 		fmapBidsDir = "".join([bidsDir, "/sub-", subject, "/fmap"])
 		try:
@@ -190,21 +195,22 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 
 
 	elif modality == 'T1w':
-		anatBidsDir = "".join([bidsDir, "/", subject, "/anat"])
+		anatBidsDir = "".join([bidsDir, "/sub-", subject, "/anat"])
 		try:
 			os.makedirs(anatBidsDir)
 		except FileExistsError:
 			print("")#print("anat bids dir already exists for " + subject)
 		anatPath = "".join([subDir, "/anatomy/t1spgr_208sl"])
-		if not os.path.isdir():
+		if not os.path.isdir(anatPath):
 			print(subject + " does not have an anatomy directory.")
 			time.sleep(.8)
 		else:
 			os.chdir(anatPath)
-			if not createAndCopyJson("none", subject, modality, anatBidsDir):
+			if not createAndCopyJson("", subject, modality, anatBidsDir):
 				print("json file not available in subject " + subject + "'s anatomy directory... no raw dicoms")
 				time.sleep(.8)
-			shutil.copy(f"sub-{subjectName}_{modality}.nii", anatBidsDir)
+			shutil.copy(f"sub-{subject}_{modality}.nii", anatBidsDir)
+		print(f"successfully bidsified anatomical data for subject {subject}")
 				
 
 # this function needs to go into a specific subject's task directory, and for each run check if a dicom folder exists.
@@ -213,17 +219,22 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 # once that is done, we can go into the new dicom directory and run dcm2niix_dev, then copy the json file out when it's done. 
 	
 def createAndCopyJson(task, subject, modality, jsonDestination):
+	# check if dcm2niix_dev has already been run on the subject/task. If it has, copy those files to the subject's BIDS directory
+	existingFiles = []
 	for file in os.listdir():
-		if file.endswith(f'{modality}.json'):
-			shutil.copy(file, jsonDestination)
-			return True
+		if file.endswith(f'{modality}.json') or file.endswith(f'{modality}?.json'):
+			existingFiles.append(file)
+	for file in existingFiles:
+		shutil.copy(file, jsonDestination)
+	if existingFiles:
+		return True
 	if not os.path.isdir("dicom"):
 		dicomStatus = decompressDicoms(subject)
 		if dicomStatus is False:
 			return False
 	else:
 		os.chdir("dicom")
-		print(f"creating json file for {subject} {modality} {task}...")
+		print(f"creating json file for {subject} {modality} {task}")
 		time.sleep(.8)
 		dcm2niix(task, subject, modality)
 		os.chdir("..")

@@ -520,6 +520,13 @@ def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir):
 
 	bidsDF = pd.read_csv(filename)
 
+
+
+    # add the session number to the bidsDir csv file. **** This will have to be updated manually if 
+	# someone wants something other than 1. 
+
+	bidsDF['session'] = '1'
+
     # append all the subjects to the subject column. This will append the subject several times,
     # depending on if the user selected several modalities
 
@@ -527,14 +534,12 @@ def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir):
 
 	bidsDF = addInfo(bidsDF, subjects, modality, path, taskList)
 
-	# add the session number to the bidsDir csv file. **** This will have to be updated manually if 
-	# someone wants something other than 1. 
-
-	bidsDF['session'] = '1'
+	
 
 	# write the final dataframe to the csv file	
 
 	bidsDF.to_csv(filename, index=False)
+
 
 	with open(filename, 'r') as csvfile:
 		datareader = cv.reader(csvfile)
@@ -628,7 +633,7 @@ def addNewSubjects(path, subjects, studyName):
 					continue
 				bidsConfirmation = {
 					inq.Confirm('bidsConfirmation',
-							message="You've selected " + Style.BRIGHT + Fore.BLUE + bidsAnswer + Style.RESET_ALL + ". Is that correct?",
+							message="You've selected " + Style.BRIGHT + Fore.BLUE + str(bidsAnswer) + Style.RESET_ALL + ". Is that correct?",
 						),
 				}
 				confirmationAnswer = inq.prompt(bidsConfirmation)
@@ -693,6 +698,7 @@ def addInfo(masterDF, subjects, modality, path, tasks):
 				modalityList.append('bold')
 				counter += 1
 			df = pd.DataFrame(subjects, columns=['subject'])
+			df['session'] = '1'
 			df['modality'] = modalityList
 			subPath = addFiles(subjects, path)
 			df['file'] = subPath
@@ -708,9 +714,11 @@ def addInfo(masterDF, subjects, modality, path, tasks):
 			modalityList.append('T1w')
 			counter += 1
 		df = pd.DataFrame(subjects, columns=['subject'])
-		df['modality'] = modalityList
+		df['modality'] = '1'
+		df['session'] = modalityList
 		subPath = addFiles(subjects, path)
 		df['file'] = subPath
+		df['task'] = 'anat'
 		return df
 
 	# if the user wants both functional and anatomical data to be bidsified, then a dataframe of all subjects with 'bold' immediately followed
@@ -723,6 +731,7 @@ def addInfo(masterDF, subjects, modality, path, tasks):
 				modalityListBold.append('bold')
 				counter += 1
 			df1 = pd.DataFrame(subjects, columns=['subject'])
+			df1['session'] = '1'
 			df1['modality'] = modalityListBold
 			subPath = addFiles(subjects, path)
 			df1['file'] = subPath
@@ -735,6 +744,7 @@ def addInfo(masterDF, subjects, modality, path, tasks):
 			modalityListAnat.append('T1w')
 			counter += 1
 		df2 = pd.DataFrame(subjects, columns=['subject'])
+		df2['session'] = '1'
 		df2['modality'] = modalityListAnat
 		subPath = addFiles(subjects, path)
 		df2['file'] = subPath
@@ -799,16 +809,19 @@ selectedStudy, rawDirectory = selectStudy(rawStudyPaths)
 # get the modality
 modality, modalityLen = getModality(selectedStudy)
 
-# get the nifti format
-niftiFormat = getFormat()
+if modality != 'anatomical':
+	# get the nifti format
+	niftiFormat = getFormat()
+else:
+	niftiFormat = ""
 
 bidsDir = getBIDSDir(rawDirectory, selectedStudy)
 
 bidsify(selectedStudy, rawDirectory, modality, niftiFormat, modalityLen, bidsDir)
 
-checkForEmptyBids(bidsDir)
+#checkForEmptyBids(bidsDir)
 
-sys.stdout = backup
+#sys.stdout = backup
 
 
 

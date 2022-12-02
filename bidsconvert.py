@@ -211,6 +211,7 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 				time.sleep(.8)
 			shutil.copy(f"sub-{subject}_{modality}.nii", anatBidsDir)
 		print(f"successfully bidsified anatomical data for subject {subject}")
+		time.sleep(.8)
 				
 
 # this function needs to go into a specific subject's task directory, and for each run check if a dicom folder exists.
@@ -232,20 +233,20 @@ def createAndCopyJson(task, subject, modality, jsonDestination):
 		dicomStatus = decompressDicoms(subject)
 		if dicomStatus is False:
 			return False
-	else:
-		os.chdir("dicom")
-		print(f"creating json file for {subject} {modality} {task}")
-		time.sleep(.8)
-		dcm2niix(task, subject, modality)
-		os.chdir("..")
-		jsonFiles = []
-		for file in os.listdir():
-			if file.endswith('.json'):
-				jsonFiles.append(file)
-		for json in jsonFiles:
-			#if modality == "epi":
-			shutil.copy(json, jsonDestination)
-		return True
+	
+	os.chdir("dicom")
+	print(f"creating json file for {subject} {modality} {task}")
+	time.sleep(.8)
+	dcm2niix(task, subject, modality)
+	os.chdir("..")
+	jsonFiles = []
+	for file in os.listdir():
+		if file.endswith('.json'):
+			jsonFiles.append(file)
+	for json in jsonFiles:
+		#if modality == "epi":
+		shutil.copy(json, jsonDestination)
+	return True
 
 
 def decompressDicoms(subject):

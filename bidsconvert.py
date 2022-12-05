@@ -88,7 +88,7 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 				runNum = run[-2:]
 				os.chdir(run)
 				if not createAndCopyJson(task, subject, modality, funcBidsDir):
-					print("json file not available in subject " + subject + "'s " + task + " directory... no raw dicoms")
+					print("json file could not be generated for subject " + subject + "'s " + task + "... no raw dicoms")
 					time.sleep(4)
 
 				# copy physio corrected run nifti file and bidsify
@@ -129,7 +129,7 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 				if "raw" in niftiFormat:
 					if not os.path.exists(f"{funcBidsDir}/sub-{subject}-raw{runNum}_task-{task}_{modality}.nii"):
 						if not createAndCopyJson(task, subject, modality, funcBidsDir):
-							print("raw dicoms not available for subject " + subject)
+							print("raw dicoms do not exist for nifti conversion for subject " + subject)
 							time.sleep(.8)
 						else:
 							try:
@@ -153,45 +153,54 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 		try:
 			os.makedirs(fmapBidsDir)
 		except FileExistsError:
-			print("")#print("fmap bids dir already exists for " + subject)
-		fmapTaskPath = "".join([subDir, "/func/fieldmaps/FM_", task])
-		if not os.path.isdir(fmapTaskPath):
-			print("")#print(subject + " does not have a " + task + " directory. Moving to next subject.")
+			print(f"field maps already bidsified for {subject}")	#print("fmap bids dir already exists for " + subject)
+			return
+		fmapPath = "".join([subDir, "/func/fieldmaps/"])
+		if not os.path.isdir(fmapPath):
+			print("")
 		else:
-			os.chdir(fmapTaskPath)
-			if not createAndCopyJson(task, subject, "epi", fmapBidsDir):
-				print("")
-			else:
-				### copy the fmap nifti file over to the fmapBIDSDir
-				for file in os.listdir():
-					if file.endswith('.nii'):
-						shutil.copy(file, fmapBidsDir)
-
-				## go to the fmap bids directory and rename the json and nifti files
-				os.chdir(fmapBidsDir)
-				jsonFiles = []
-				for file in os.listdir():
-					if file.endswith('.json') and task in file:
-						jsonFiles.append(file)
-				# if the modality is json, things have to be done a bit differently. check series number 
-				# if it's greater than 1000, it's AP. If it's less, it's PA. Rename both the json and matching nifti file
-				for json in jsonFiles:
-					file = open(json)
-					data = js.load(file)
-					seriesNumber = data["SeriesNumber"]
-					matchingNifti = json.replace('.json', '.nii')
-					if seriesNumber > 1000:
-						newFmapNameJson = f"sub-{subject}{task}_dir-AP_epi.json"
-						newFmapNameNifti = f"sub-{subject}{task}_dir-AP_epi.nii"
-						os.rename(json, newFmapNameJson)
-						os.rename(matchingNifti, newFmapNameNifti)
-					elif seriesNumber < 1000:
-						newFmapNameJson = f"sub-{subject}{task}_dir-PA_epi.json"
-						newFmapNameNifti = f"sub-{subject}{task}_dir-PA_epi.nii"
-						os.rename(json, newFmapNameJson)
-						os.rename(matchingNifti, newFmapNameNifti)
-				print(f"Field maps successfully bidsified")
-				time.sleep(.8)
+			os.chdir(fmapPath)
+			print(f"bidsifying all fieldmap data for subject {subject}...")
+			for dir in os.listdir():
+				os.chdir(dir)
+				task = dir[3:]
+				if not createAndCopyJson(task, subject, "epi", fmapBidsDir):
+					print("")
+				else:
+					### copy the nifti file over to the fmapBIDSDir
+					fmapNum = []
+					for file in os.listdir():
+						if file.endswith('.nii'):
+							shutil.copy(file, fmapBidsDir)
+					os.chdir(fmapBidsDir)
+					jsonFiles = []
+					for file in os.listdir():
+						if file.endswith('.json') and task in file:
+							jsonFiles.append(file)
+					# if the modality is json, things have to be done a bit differently. check series number 
+					# if it's greater than 1000, it's AP. If it's less, it's PA. Rename both the json and matching nifti file
+					#for i in range(1, fmapNum):
+					for idx, json in enumerate(jsonFiles, 1):
+						file = open(json)
+						data = js.load(file)
+						seriesNumber = data["SeriesNumber"]
+						matchingNifti = json.replace('.json', '.nii')
+						if idx > 1:
+							idx -= 1
+						if seriesNumber > 1000:
+							newFmapNameJson = f"sub-{subject}-{task}-run0{idx}_dir-AP_epi.json"
+							newFmapNameNifti = f"sub-{subject}-{task}-run0{idx}_dir-AP_epi.nii"
+							os.rename(json, newFmapNameJson)
+							os.rename(matchingNifti, newFmapNameNifti)
+						elif seriesNumber < 1000:
+							newFmapNameJson = f"sub-{subject}-{task}-run0{idx}_dir-PA_epi.json"
+							newFmapNameNifti = f"sub-{subject}-{task}-run0{idx}_dir-PA_epi.nii"
+							os.rename(json, newFmapNameJson)
+							os.rename(matchingNifti, newFmapNameNifti)
+						idx += 1
+				os.chdir(fmapPath)
+			print(f"Field maps successfully bidsified")
+			time.sleep(.8)
 
 
 	elif modality == 'T1w':
@@ -223,8 +232,12 @@ def createAndCopyJson(task, subject, modality, jsonDestination):
 	# check if dcm2niix_dev has already been run on the subject/task. If it has, copy those files to the subject's BIDS directory
 	existingFiles = []
 	for file in os.listdir():
-		if file.endswith(f'{modality}.json') or file.endswith(f'{modality}?.json'):
-			existingFiles.append(file)
+		if modality == 'epi':
+			if modality in file and task in file and file.endswith('.json'):
+				existingFiles.append(file)
+		else:
+			if file.endswith(f'{modality}.json'):
+				existingFiles.append(file)
 	for file in existingFiles:
 		shutil.copy(file, jsonDestination)
 	if existingFiles:

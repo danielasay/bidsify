@@ -550,6 +550,8 @@ def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir):
 				continue
 			bidsconvert.bidsify(row, bidsDir, niftiFormat)
 
+	sys.stdout = backup
+
 	
 
 # this function checks if a BIDS directory already exists for a given study. If it does, it compares the date of the most recent BIDS to
@@ -821,7 +823,7 @@ bidsify(selectedStudy, rawDirectory, modality, niftiFormat, modalityLen, bidsDir
 
 #checkForEmptyBids(bidsDir)
 
-#sys.stdout = backup
+#
 
 
 

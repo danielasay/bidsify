@@ -455,24 +455,25 @@ def getBIDSDir(rawDirPath, study):
 
 
 def chopVolumes(modality):
-	print("Would you like to remove any volumes from the beginning of your functional runs?\nPlease note that prun and regular run files have generally already had volumes removed. Check your specific study's data to verify.")
+	print("Would you like to remove any volumes from the beginning of your functional runs?\nPlease note that prun and regular run files have generally already had volumes removed.\nCheck your specific study's data to verify.\n")
 	while True:
 		try:
 			chopVols = [
-				inq.text('chopVols',
-						message = "If so, please enter the number here. If not, please enter 0."
+				inq.Text('chopVols',
+						message = "If so, please enter the number here. If not, please enter 0",
 					),
 			]
 			volumesAnswer = inq.prompt(chopVols)
-			volumeAnswer = volumesAnswer['copVols']
+			volumeAnswer = volumesAnswer['chopVols']
 			volumesConfirmation = {
 				inq.Confirm('volumesConfirmation',
 						message="You've entered " + Style.BRIGHT + Fore.BLUE + volumeAnswer + Style.RESET_ALL + " as your volumes to chop. Is that correct?",
 					),
 			}
-			confirmationAnswer = inq.prompt(volumeConfirmation)
-			confirmationType = type(confirmationAnswer).__name__
-			if type(confirmationAnswer) != "int":
+			confirmationAnswer = inq.prompt(volumesConfirmation)
+			try:
+				volumeAnswer = int(volumeAnswer)
+			except ValueError:
 				print("you did not enter an integer. please try again.")
 				time.sleep(1.5)
 				continue
@@ -855,7 +856,9 @@ else:
 
 bidsDir = getBIDSDir(rawDirectory, selectedStudy)
 
-numVolsToChop = chopVolumes(modality)
+if modality != 'anatomical':
+	numVolsToChop = chopVolumes(modality)
+
 
 bidsify(selectedStudy, rawDirectory, modality, niftiFormat, modalityLen, bidsDir, numVolsToChop)
 

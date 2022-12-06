@@ -99,22 +99,24 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat, numVolsToCho
 							shutil.copy(f"prun_{runNum}.nii", funcBidsDir)
 							newFileName = f"sub-{subject}-prun{runNum}_task-{task}_{modality}.nii"
 							os.rename(f"{funcBidsDir}/prun_{runNum}.nii", f"{funcBidsDir}/{newFileName}")
-
-							# if the user wanted to remove volumes, remove them here
-							if numVolsToChop > 0:
-								print(f'removing {numVolsToChop} volumes from {newFileName}...')
-								totalVolumes = getTotalNumberOfVolumes(subject, newFileName, funcBidsDir)
-								newTotalVols = totalVolumes - numVolsToChop
-								chopVols = f'fslroi {newFileName} {newFileName} {numVolsToChop} {newTotalVols}'
-								proc1 = subprocess.Popen(chopVols, shell=True, stdout=subprocess.PIPE)
-								proc1.wait()
-								print(f"{newFileName} now has {newTotalVols} volumes.")
-
 							print(f"successfully bidsified prun file for subject {subject} {task} run{runNum}")
 							time.sleep(.8)
 						except FileNotFoundError:
 							print("prun file does not exist for subject " + subject + " " + task)
 							time.sleep(6)
+
+
+						# if the user wanted to remove volumes, remove them here
+						if numVolsToChop > 0:
+							print(f'removing {numVolsToChop} volumes from {newFileName}...')
+							totalVolumes = getTotalNumberOfVolumes(subject, newFileName, funcBidsDir)
+							newTotalVols = totalVolumes - numVolsToChop
+							chopVols = f'fslroi {newFileName} {newFileName} {numVolsToChop} {newTotalVols}'
+							proc1 = subprocess.Popen(chopVols, shell=True, stdout=subprocess.PIPE)
+							proc1.wait()
+							print(f"{newFileName} now has {newTotalVols} volumes.")
+
+
 					else:
 						print("prun file has already been bidsified for " + subject + " " + task)
 						time.sleep(6)
@@ -127,22 +129,23 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat, numVolsToCho
 						try:
 							shutil.copy(f"run_{runNum}.nii", funcBidsDir)
 							os.rename(f"{funcBidsDir}/run_{runNum}.nii", f"{funcBidsDir}/{newFileName}")
-
-							# if the user wanted to remove volumes, remove them here
-							if numVolsToChop > 0:
-								print(f'removing {numVolsToChop} volumes from {newFileName}...')
-								totalVolumes = getTotalNumberOfVolumes(subject, newFileName, funcBidsDir)
-								newTotalVols = totalVolumes - numVolsToChop
-								chopVols = f'fslroi {newFileName} {newFileName} {numVolsToChop} {newTotalVols}'
-								proc1 = subprocess.Popen(chopVols, shell=True, stdout=subprocess.PIPE)
-								proc1.wait()
-								print(f"{newFileName} now has {newTotalVols} volumes.")
-
 							print(f"successfully bidsified regular run file for subject {subject} {task} run{runNum}")
 							time.sleep(.8)
 						except FileNotFoundError:
 							print("regular run file does not exist for subject " + subject + " " + task)
 							time.sleep(.8)
+
+						# if the user wanted to remove volumes, remove them here
+						if numVolsToChop > 0:
+							print(f'removing {numVolsToChop} volumes from {newFileName}...')
+							totalVolumes = getTotalNumberOfVolumes(subject, newFileName, funcBidsDir)
+							newTotalVols = totalVolumes - numVolsToChop
+							chopVols = f'fslroi {newFileName} {newFileName} {numVolsToChop} {newTotalVols}'
+							proc1 = subprocess.Popen(chopVols, shell=True, stdout=subprocess.PIPE)
+							proc1.wait()
+							print(f"{newFileName} now has {newTotalVols} volumes.")
+
+
 					else:
 						print("regular run file has already been bidsified for " + subject + " " + task)
 						time.sleep(.8)
@@ -156,7 +159,13 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat, numVolsToCho
 						else:
 							try:
 								shutil.copy(f"sub-{subject}_task-{task}_{modality}.nii", funcBidsDir)
+								newFileName = f"sub-{subject}-raw{runNum}_task-{task}_{modality}.nii"
 								os.rename(f"{funcBidsDir}/sub-{subject}_task-{task}_{modality}.nii", f"{funcBidsDir}/sub-{subject}-raw{runNum}_task-{task}_{modality}.nii")
+								print(f"successfully bidsified raw dicom nifti file for subject {subject} {task} run{runNum}")
+								time.sleep(.8)
+							except FileNotFoundError:
+								print("dcm2niix_dev failed for subject " + subject + " " + task + ", which means no raw dicom nifti or json file.\nTry again manually in the terminal.")
+								time.sleep(8)
 
 							# if the user wanted to remove volumes, remove them here
 							if numVolsToChop > 0:
@@ -168,12 +177,7 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat, numVolsToCho
 								proc1.wait()
 								print(f"{newFileName} now has {newTotalVols} volumes.")
 
-								
-								print(f"successfully bidsified raw dicom nifti file for subject {subject} {task} run{runNum}")
-								time.sleep(.8)
-							except FileNotFoundError:
-								print("dcm2niix_dev failed for subject " + subject + " " + task + ", which means no raw dicom nifti or json file.\nTry again manually in the terminal.")
-								time.sleep(8)
+
 					else:
 						print("nifti file converted from raw dicoms has already been bidsified for " + subject + " " + task)
 						time.sleep(.8)
@@ -348,7 +352,7 @@ def getTotalNumberOfVolumes(subject, file, bidsDir):
 	# go to the directory of the recently copied and bidsified data
 	# get the number of volumes that the subject currently has via fslinfo, turn it into a json file and then return that number
 	os.chdir(bidsDir)
-	fslinfo = f'fslinfo {file} > subject.txt'
+	fslinfo = f'fslinfo {file} > {subject}.txt'
 	proc1 = subprocess.Popen(fslinfo, shell=True, stdout=subprocess.PIPE)
 	proc1.wait()
 	txtFile = f'{subject}.txt'
@@ -358,12 +362,18 @@ def getTotalNumberOfVolumes(subject, file, bidsDir):
 			command, description = line.strip().split(None, 1)
 			dictionary[command] = description.strip()
 	outJson = open(f'{subject}.json', 'w')
-	json.dump(dictionary, outJson, indent = 4, sort_keys = False)
+	js.dump(dictionary, outJson, indent = 4, sort_keys = False)
 	outJson.close()
 
-	file = open(outJson)
+	file = open(f"{subject}.json")
 	data = js.load(file)
 	totalVolumes = data["dim4"]
+	totalVolumes = int(totalVolumes)
+
+	# remove unnecessary files
+	os.remove(file)
+	os.remove(txtFile)
+
 	return totalVolumes
 
 

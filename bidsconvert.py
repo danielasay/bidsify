@@ -99,7 +99,7 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 							shutil.copy(f"prun_{runNum}.nii", funcBidsDir)
 							newFileName = f"sub-{subject}-prun{runNum}_task-{task}_{modality}.nii"
 							os.rename(f"{funcBidsDir}/prun_{runNum}.nii", f"{funcBidsDir}/{newFileName}")
-							print("successfully bidsified prun file for subject " + subject)
+							print(f"successfully bidsified prun file for subject {subject} {task} run{runNum}")
 							time.sleep(.8)
 						except FileNotFoundError:
 							print("prun file does not exist for subject " + subject + " " + task)
@@ -116,7 +116,7 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 						try:
 							shutil.copy(f"run_{runNum}.nii", funcBidsDir)
 							os.rename(f"{funcBidsDir}/run_{runNum}.nii", f"{funcBidsDir}/{newFileName}")
-							print("successfully bidsified regular run file for subject " + subject)
+							print(f"successfully bidsified regular run file for subject {subject} {task} run{runNum}")
 							time.sleep(.8)
 						except FileNotFoundError:
 							print("regular run file does not exist for subject " + subject + " " + task)
@@ -135,7 +135,7 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 							try:
 								shutil.copy(f"sub-{subject}_task-{task}_{modality}.nii", funcBidsDir)
 								os.rename(f"{funcBidsDir}/sub-{subject}_task-{task}_{modality}.nii", f"{funcBidsDir}/sub-{subject}-raw{runNum}_task-{task}_{modality}.nii")
-								print("successfully bidsified raw dicom nifti file for subject " + subject)
+								print(f"successfully bidsified raw dicom nifti file for subject {subject} {task} run{runNum}")
 								time.sleep(.8)
 							except FileNotFoundError:
 								print("dcm2niix_dev failed for subject " + subject + " " + task + ", which means no raw dicom nifti or json file.\nTry again manually in the terminal.")

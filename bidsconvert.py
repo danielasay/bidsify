@@ -23,7 +23,7 @@ raw_dir = "/PROJECTS/bacpac/raw/"
 
 
 
-def bidsify(data, bidsDir, niftiFormat):
+def bidsify(data, bidsDir, niftiFormat, numVolsToChop):
 	subject = data[0]
 	session = data[1]
 	modality = data[2]
@@ -31,7 +31,7 @@ def bidsify(data, bidsDir, niftiFormat):
 	task = data[4]
 	print("\n" + Style.BRIGHT + Fore.BLUE + "bidsifying data for subject " + subject + " " + modality  + " " + task + "...\n" + Style.RESET_ALL)
 	time.sleep(2.5)
-	copyData(subject, modality, subPath, task, bidsDir, niftiFormat)
+	copyData(subject, modality, subPath, task, bidsDir, niftiFormat, numVolsToChop)
 
 
 # I want it take all the info for a given subject, create the BIDS dir if it doesn't already exist,
@@ -67,7 +67,7 @@ def parseNiftiInfo(niftiInfo):
 # directory. There are several lines where edits are made to strings for BIDS compliance. 
 
 
-def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
+def copyData(subject, modality, subDir, task, bidsDir, niftiFormat, numVolsToChop):
 	# if the modality is bold, then make a function bids directory for the subject.
 	# copy data over from raw according to the user specifications. Also copy fieldmaps
 	desiredNifti = parseNiftiInfo(niftiFormat)
@@ -99,6 +99,17 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 							shutil.copy(f"prun_{runNum}.nii", funcBidsDir)
 							newFileName = f"sub-{subject}-prun{runNum}_task-{task}_{modality}.nii"
 							os.rename(f"{funcBidsDir}/prun_{runNum}.nii", f"{funcBidsDir}/{newFileName}")
+
+							# if the user wanted to remove volumes, remove them here
+							if numVolsToChop > 0:
+								print(f'removing {numVolsToChop} volumes from {newFileName}...')
+								totalVolumes = getTotalNumberOfVolumes(subject, newFileName, funcBidsDir)
+								newTotalVols = totalVolumes - numVolsToChop
+								chopVols = f'fslroi {newFileName} {newFileName} {numVolsToChop} {newTotalVols}'
+								proc1 = subprocess.Popen(chopVols, shell=True, stdout=subprocess.PIPE)
+								proc1.wait()
+								print(f"{newFileName} now has {newTotalVols} volumes.")
+
 							print(f"successfully bidsified prun file for subject {subject} {task} run{runNum}")
 							time.sleep(.8)
 						except FileNotFoundError:
@@ -116,6 +127,17 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 						try:
 							shutil.copy(f"run_{runNum}.nii", funcBidsDir)
 							os.rename(f"{funcBidsDir}/run_{runNum}.nii", f"{funcBidsDir}/{newFileName}")
+
+							# if the user wanted to remove volumes, remove them here
+							if numVolsToChop > 0:
+								print(f'removing {numVolsToChop} volumes from {newFileName}...')
+								totalVolumes = getTotalNumberOfVolumes(subject, newFileName, funcBidsDir)
+								newTotalVols = totalVolumes - numVolsToChop
+								chopVols = f'fslroi {newFileName} {newFileName} {numVolsToChop} {newTotalVols}'
+								proc1 = subprocess.Popen(chopVols, shell=True, stdout=subprocess.PIPE)
+								proc1.wait()
+								print(f"{newFileName} now has {newTotalVols} volumes.")
+
 							print(f"successfully bidsified regular run file for subject {subject} {task} run{runNum}")
 							time.sleep(.8)
 						except FileNotFoundError:
@@ -135,6 +157,18 @@ def copyData(subject, modality, subDir, task, bidsDir, niftiFormat):
 							try:
 								shutil.copy(f"sub-{subject}_task-{task}_{modality}.nii", funcBidsDir)
 								os.rename(f"{funcBidsDir}/sub-{subject}_task-{task}_{modality}.nii", f"{funcBidsDir}/sub-{subject}-raw{runNum}_task-{task}_{modality}.nii")
+
+							# if the user wanted to remove volumes, remove them here
+							if numVolsToChop > 0:
+								print(f'removing {numVolsToChop} volumes from {newFileName}...')
+								totalVolumes = getTotalNumberOfVolumes(subject, newFileName, funcBidsDir)
+								newTotalVols = totalVolumes - numVolsToChop
+								chopVols = f'fslroi {newFileName} {newFileName} {numVolsToChop} {newTotalVols}'
+								proc1 = subprocess.Popen(chopVols, shell=True, stdout=subprocess.PIPE)
+								proc1.wait()
+								print(f"{newFileName} now has {newTotalVols} volumes.")
+
+								
 								print(f"successfully bidsified raw dicom nifti file for subject {subject} {task} run{runNum}")
 								time.sleep(.8)
 							except FileNotFoundError:
@@ -309,6 +343,28 @@ def dcm2niix(taskName, subjectName, modality):
 	 					."
 		proc2 = subprocess.Popen(dcm2niix, shell=True, stdout=subprocess.PIPE)
 		proc2.wait()
+
+def getTotalNumberOfVolumes(subject, file, bidsDir):
+	# go to the directory of the recently copied and bidsified data
+	# get the number of volumes that the subject currently has via fslinfo, turn it into a json file and then return that number
+	os.chdir(bidsDir)
+	fslinfo = f'fslinfo {file} > subject.txt'
+	proc1 = subprocess.Popen(fslinfo, shell=True, stdout=subprocess.PIPE)
+	proc1.wait()
+	txtFile = f'{subject}.txt'
+	dictionary = {}
+	with open(txtFile) as f:
+		for line in f:
+			command, description = line.strip().split(None, 1)
+			dictionary[command] = description.strip()
+	outJson = open(f'{subject}.json', 'w')
+	json.dump(dictionary, outJson, indent = 4, sort_keys = False)
+	outJson.close()
+
+	file = open(outJson)
+	data = js.load(file)
+	totalVolumes = data["dim4"]
+	return totalVolumes
 
 
 # This function will check if the run_01.nii file for a particular tasks and run have already been copied over to the 

@@ -454,14 +454,50 @@ def getBIDSDir(rawDirPath, study):
 		return bidsAnswer
 
 
-	
+def chopVolumes(modality):
+	print("Would you like to remove any volumes from the beginning of your functional runs?\nPlease note that prun and regular run files have generally already had volumes removed. Check your specific study's data to verify.")
+	while True:
+		try:
+			chopVols = [
+				inq.text('chopVols',
+						message = "If so, please enter the number here. If not, please enter 0."
+					),
+			]
+			volumesAnswer = inq.prompt(chopVols)
+			volumeAnswer = volumesAnswer['copVols']
+			volumesConfirmation = {
+				inq.Confirm('volumesConfirmation',
+						message="You've entered " + Style.BRIGHT + Fore.BLUE + volumeAnswer + Style.RESET_ALL + " as your volumes to chop. Is that correct?",
+					),
+			}
+			confirmationAnswer = inq.prompt(volumeConfirmation)
+			confirmationType = type(confirmationAnswer).__name__
+			if type(confirmationAnswer) != "int":
+				print("you did not enter an integer. please try again.")
+				time.sleep(1.5)
+				continue
+			if confirmationAnswer['volumesConfirmation'] == True:
+				print("Volumes to Chop Confirmed.\n")
+				time.sleep(.5)
+				break
+			else:
+				raise ValueError("You did not confirm your selection. Please try again.")
+		except ValueError:
+			print("You did not confirm your selection. Please try again.")
+			time.sleep(1.5)
+			continue
+
+	return 	volumeAnswer	
+
+# example
+#fslroi sub-opi030pre-prun01_task-cuff_bold.nii sub-opi030pre-prun01_task-cuff_bold.nii 10 480	
 
 # 6. Make bidsify and copy into discrete functions (makes the script more robust and readable.)
 # ****** This will make use of the bidsmanager library. I will take all of the info that I've gathered
 # from the user, and then create a csv file with the necessary info for bidsmanager. That will include:
 # subject name, session, modality, full path to file, task (can be left blank for T1)
 
-def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir):
+def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir, numVolsToChop):
 
 
 	# go to the raw path for the selected study
@@ -548,7 +584,7 @@ def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir):
 			if counter == 0:
 				counter += 1
 				continue
-			bidsconvert.bidsify(row, bidsDir, niftiFormat)
+			bidsconvert.bidsify(row, bidsDir, niftiFormat, numVolsToChop)
 
 	sys.stdout = backup
 
@@ -819,7 +855,9 @@ else:
 
 bidsDir = getBIDSDir(rawDirectory, selectedStudy)
 
-bidsify(selectedStudy, rawDirectory, modality, niftiFormat, modalityLen, bidsDir)
+numVolsToChop = chopVolumes(modality)
+
+bidsify(selectedStudy, rawDirectory, modality, niftiFormat, modalityLen, bidsDir, numVolsToChop)
 
 #checkForEmptyBids(bidsDir)
 

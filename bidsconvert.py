@@ -232,6 +232,62 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 				os.chdir(taskPath)
 
 
+	# this section will bidsify the anatomical data and then copy it to every single diretory in the BIDS dir that starts with the specific
+	# subject's name/ID
+
+	elif modality == 'T1w':
+
+		### check and see if there have already been BIDS directories created for the subject
+		os.chdir(bidsDir)
+		subjectDirectories = []
+
+		# look at each of the directories. If they start with the subject's name, add them to the subjectDirectories list
+		for directory in os.listdir():
+			if directory.startswith(f"sub-{subject}"):
+				subjectDirectories.append(directory)
+		
+		# go into each of these directories and copy over the bidsified anatomical data
+		for subDir in subjectDirectories:
+
+			# creat the anatBidsDir for each of the subject's directories and then change into the raw anatomical directory
+			anatBidsDir = "".join([bidsDir, "/", subDir, "/anat"])
+			try:
+				os.makedirs(anatBidsDir)
+			except FileExistsError:
+				print("")#print("anat bids dir already exists for " + subject)
+			anatPath = "".join([rawSubDir, "/anatomy/t1spgr_208sl"])
+			if not os.path.isdir(anatPath):
+				print(subject + " does not have an anatomy directory.")
+				time.sleep(.8)
+			else:
+				os.chdir(anatPath)
+
+				# create a json file and, if necessary, a nii file for the anatomical data
+				# the jsonSubDir is for the sake of the createAndCopyJson function. It's needed so that any files that have 
+				# already been generated using dcm2niix with an incorrect BIDS name can be corrected.
+				jsonSubDir = "".join([subDir, "_T1w.json"])
+				if not createAndCopyJson("", subject, modality, anatBidsDir, jsonSubDir):
+					print("json file not available in subject " + subject + "'s anatomy directory... no raw dicoms")
+					time.sleep(.8)
+
+				# copy over the nifti anatomical data
+
+				# there's something wrong here. Try to figure out if there just needs to be a generic T1 file that gets copied over and then 
+				# renamed accordingly. That might be the way to go regardless.
+				try:
+					shutil.copy(f"{subDir}_{modality}.nii", anatBidsDir)	
+				except:
+					os.chdir("dicom")
+					dcm2niix("", subDir, modality, "")
+					os.chdir("..")
+					shutil.copy(f"{subDir}_{modality}.nii", anatBidsDir)
+
+
+
+			print(f"successfully bidsified anatomical data for subject {subDir}")
+			time.sleep(.8)
+
+
 
 # this function copies over the fieldmap data for subject's user selected nifti type and task
 
@@ -298,31 +354,9 @@ def copyFmapData(rawSubDir, oldSubName, bidsSubName, bidsDir, task, niftiFormat,
 		print(f"Field maps successfully bidsified")
 		time.sleep(.8)
 
-'''
-
-	elif modality == 'T1w':
-		anatBidsDir = "".join([bidsDir, "/sub-", subject, "/anat"])
-		try:
-			os.makedirs(anatBidsDir)
-		except FileExistsError:
-			print("")#print("anat bids dir already exists for " + subject)
-		anatPath = "".join([rawSubDir, "/anatomy/t1spgr_208sl"])
-		if not os.path.isdir(anatPath):
-			print(subject + " does not have an anatomy directory.")
-			time.sleep(.8)
-		else:
-			os.chdir(anatPath)
-			if not createAndCopyJson("", subject, modality, anatBidsDir):
-				print("json file not available in subject " + subject + "'s anatomy directory... no raw dicoms")
-				time.sleep(.8)
-			shutil.copy(f"sub-{subject}_{modality}.nii", anatBidsDir)
-		print(f"successfully bidsified anatomical data for subject {subject}")
-		time.sleep(.8)
 
 
 # this function serves to get rid of unnecessary underscores and hyphens in the subject's name
-
-'''
 
 def modifySubName(subject):
 	if '_' in subject:
@@ -339,7 +373,8 @@ def createAndCopyJson(task, subject, modality, jsonDestination, subBidsName):
 	# check if dcm2niix_dev has already been run on the subject/task. If it has, copy those files to the subject's BIDS directory
 	existingFiles = []
 	# change the name to be in json format
-	subBidsName = subBidsName.replace('.nii', '.json')
+	if subBidsName.endswith('.nii'):
+		subBidsName = subBidsName.replace('.nii', '.json')
 
 	# look at each of the files in the directory to see if any of them have the specific modality and task in the name and end in '.json'
 	# rname the file to be the correct bidsified name
@@ -423,7 +458,7 @@ def dcm2niix(taskName, subjectName, modality, bidsSubName):
 		dcm2niix = f"dcm2niix_dev \
 	 					-o ../ \
 	 					-x n \
-	 					-f sub-{subjectName}_{modality} \
+	 					-f {subjectName}_{modality} \
 	 					-z n \
 	 					."
 		proc2 = subprocess.Popen(dcm2niix, shell=True, stdout=subprocess.PIPE)

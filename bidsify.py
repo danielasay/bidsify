@@ -454,6 +454,9 @@ def getBIDSDir(rawDirPath, study):
 		return bidsAnswer
 
 
+# this function asks the user how many volumes (if any) they'd like to remove from the functional runs. 
+# As part of future work on this project, I think it would be helpful to just remove volumes from raw functional runs
+
 def chopVolumes(modality):
 	print("Would you like to remove any volumes from the beginning of your functional runs?\nPlease note that prun and regular run files have generally already had volumes removed.\nCheck your specific study's data to verify.\n")
 	while True:
@@ -858,6 +861,8 @@ bidsDir = getBIDSDir(rawDirectory, selectedStudy)
 
 if modality != 'anatomical':
 	numVolsToChop = chopVolumes(modality)
+else:
+	numVolsToChop = 0
 
 
 bidsify(selectedStudy, rawDirectory, modality, niftiFormat, modalityLen, bidsDir, numVolsToChop)

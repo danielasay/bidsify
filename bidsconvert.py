@@ -121,6 +121,10 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 					print("prun file has already been bidsified for " + subject + " " + task)
 					time.sleep(6)
 
+
+				# copy over the corresponding fieldmap data
+				copyFmapData(rawSubDir, oldSubName, bidsSubName, bidsDir, task, niftiFormat, runNum)	
+
 		#if the path does exist and regular run is in the niftiFormat variable, then create a directory dedicated to the regular run nifti type and it's 
 		# associated task and runs.
 		if os.path.isdir(taskPath) and "regular" in niftiFormat:
@@ -164,6 +168,9 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 				else:
 					print("prun file has already been bidsified for " + subject + " " + task)
 					time.sleep(6)
+
+				# copy over the corresponding fieldmap data
+				copyFmapData(rawSubDir, oldSubName, bidsSubName, bidsDir, task, niftiFormat, runNum)
 
 
 		#if the path does exist and regular run is in the niftiFormat variable, then create a directory dedicated to the raw dicom nifti type and it's 

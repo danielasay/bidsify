@@ -121,9 +121,12 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 					print("prun file has already been bidsified for " + subject + " " + task)
 					time.sleep(6)
 
-
+				
 				# copy over the corresponding fieldmap data
-				copyFmapData(rawSubDir, oldSubName, bidsSubName, bidsDir, task, niftiFormat, runNum)	
+				copyFmapData(rawSubDir, oldSubName, bidsSubName, bidsDir, task, niftiFormat, runNum)
+
+				# go back to the task directory in the event of multiple runs
+				os.chdir(taskPath)
 
 		#if the path does exist and regular run is in the niftiFormat variable, then create a directory dedicated to the regular run nifti type and it's 
 		# associated task and runs.
@@ -169,9 +172,12 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 					print("prun file has already been bidsified for " + subject + " " + task)
 					time.sleep(6)
 
+				
 				# copy over the corresponding fieldmap data
 				copyFmapData(rawSubDir, oldSubName, bidsSubName, bidsDir, task, niftiFormat, runNum)
 
+				# go back to the task directory in the event of multiple runs
+				os.chdir(taskPath)
 
 		#if the path does exist and regular run is in the niftiFormat variable, then create a directory dedicated to the raw dicom nifti type and it's 
 		# associated task and runs.	
@@ -224,7 +230,7 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 					print("raw dicom nifti file has already been bidsified for " + subject + " " + task)
 					time.sleep(6)
 
-
+				os.chdir(taskPath)
 				# copy over the corresponding fieldmap data
 				copyFmapData(rawSubDir, oldSubName, bidsSubName, bidsDir, task, "raw", runNum)
 
@@ -434,7 +440,7 @@ def decompressDicoms(subject):
 			proc1.wait()
 			return True
 		elif dicom.endswith(".zip"):
-			unzip = "gunzip dicom.zip"
+			unzip = "unzip dicom.zip"
 			proc2 = subprocess.Popen(unzip, shell=True, stdout=subprocess.PIPE)
 			proc2.wait()
 			return True

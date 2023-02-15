@@ -79,6 +79,8 @@ print('')
 
 bidsPath = input("Enter the path where you want the output copied to: ")
 
+print('')
+
 
 for file in output:
 	print(f'Copying {file} to {bidsPath}...')

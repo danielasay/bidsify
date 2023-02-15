@@ -75,7 +75,9 @@ print(f'Output: {output}')
 
 # this asks the user for the path they would like to copy the data to (if applicable)
 
-bidsPath = input("\nEnter the path where you want the output copied to: ")
+print('')
+
+bidsPath = input("Enter the path where you want the output copied to: ")
 
 
 for file in output:

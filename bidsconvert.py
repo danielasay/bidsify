@@ -22,7 +22,7 @@ def bidsify(data, bidsDir, niftiFormat, numVolsToChop):
 	subPath = data[3]
 	task = data[4]
 	print("\n" + Style.BRIGHT + Fore.BLUE + "bidsifying data for subject " + subject + " " + modality  + " " + task + "...\n" + Style.RESET_ALL)
-	time.sleep(2.5)
+	time.sleep(.5)
 	copyData(subject, modality, subPath, task, bidsDir, niftiFormat, numVolsToChop)
 
 
@@ -119,7 +119,7 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 
 				else:
 					print("prun file has already been bidsified for " + subject + " " + task)
-					time.sleep(6)
+					time.sleep(2)
 
 				
 				# copy over the corresponding fieldmap data

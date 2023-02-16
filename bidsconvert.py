@@ -367,7 +367,7 @@ def copyFmapData(rawSubDir, oldSubName, bidsSubName, bidsDir, task, niftiFormat,
 def modifySubName(subject):
 	if '_' in subject:
 		newSubjectName = subject.replace('_', "")
-	return newSubjectName
+		return newSubjectName
 				
 
 # this function needs to go into a specific subject's task directory, and for each run check if a dicom folder exists.

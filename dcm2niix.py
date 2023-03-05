@@ -10,12 +10,26 @@ import time
 import os
 import pprint
 import shutil
+import socket
+import json as js
 
 # This function will take the dicoms in the current working directory and convert them to nii and BIDS format. 
 
-def dcm2niix(taskName, subjectName, modality):
-	if modality == "bold" or modality == "epi":
-		dcm2niix = f"dcm2niix \
+
+#find out if working on the old or new server
+
+def getHostname():
+	hostname = socket.gethostname()
+	return hostname
+
+
+def dcm2niix(taskName, subjectName, modality, hostname):
+	# if it's a functional bold run
+
+	# use dcm2niix if on new server
+
+	if modality == "bold":
+		dcm2niix = f"dcm2niix_dev \
 	 					-o . \
 	 					-x n \
 	 					-f sub-{subjectName}_task-{taskName}_{modality} \
@@ -23,21 +37,53 @@ def dcm2niix(taskName, subjectName, modality):
 	 					."
 		proc1 = subprocess.Popen(dcm2niix, shell=True, stdout=subprocess.PIPE)
 		try:
-			print("Running dcm2niix...")
+			print("Running dcm2niix_dev...")
 			proc1.wait()
 		except:
 			print("dcm2niix_dev picked up an error for subject " + subjectName + " " + taskName + ".\nTry running it manually in the terminal.")
-			time.sleep(10)
-	elif modality == "T1w":
-		dcm2niix = f"dcm2niix \
+			time.sleep(10)	
+	# if it's a fieldmap run	
+	elif modality == 'epi':
+		dcm2niix = f"dcm2niix_dev \
 	 					-o . \
 	 					-x n \
 	 					-f sub-{subjectName}_{modality} \
 	 					-z n \
 	 					."
 		proc2 = subprocess.Popen(dcm2niix, shell=True, stdout=subprocess.PIPE)
-		print("Running dcm2niix...")
+		print("Running dcm2niix_dev...")
 		proc2.wait()
+		jsonFiles = []
+		for file in os.listdir():
+			if file.endswith('.json'):
+				jsonFiles.append(file)
+		for json in jsonFiles:
+			file = open(json)
+			data = js.load(file)
+			seriesNumber = data["SeriesNumber"]
+			matchingNifti = json.replace('.json', '.nii')
+			# check if the json file series number is greater or less than 1000 to determine phase encode direction
+			if seriesNumber > 1000:
+				newFmapNameJson = f"sub-{subjectName}_task-{task}_dir-AP_epi.json"
+				newFmapNameNifti = f"sub-{subjectName}_task-{task}_dir-AP_epi.nii"
+				os.rename(json, newFmapNameJson)
+				os.rename(matchingNifti, newFmapNameNifti)
+			elif seriesNumber < 1000:
+				newFmapNameJson = f"sub-{subjectName}_task-{task}_dir-PA_epi.json"
+				newFmapNameNifti = f"sub-{subjectName}_task-{task}_dir-PA_epi.nii"
+				os.rename(json, newFmapNameJson)
+				os.rename(matchingNifti, newFmapNameNifti)
+	# if it's an anatomical run	
+	elif modality == "T1w":
+		dcm2niix = f"dcm2niix_dev \
+	 					-o . \
+	 					-x n \
+	 					-f sub-{subjectName}_{modality} \
+	 					-z n \
+	 					."
+		proc3 = subprocess.Popen(dcm2niix, shell=True, stdout=subprocess.PIPE)
+		print("Running dcm2niix_dev...")
+		proc3.wait()
 
 
 # printing out the current working directory may help the user when asked for the task name, subject name and modality. 
@@ -56,9 +102,13 @@ subjectName = input('Enter the subject name: ')
 
 modality = input('Enter the modality: ')
 
+# get the current hostname (are you on old or new server)
+
+hostname = getHostname()
+
 # run dcm2niix with the given parameters
 
-dcm2niix(task, subjectName, modality)
+dcm2niix(task, subjectName, modality, hostname)
 
 
 # create a list of the output and print to terminal
@@ -66,7 +116,7 @@ dcm2niix(task, subjectName, modality)
 output = []
 
 for file in os.listdir():
-	if file.endswith("nii") or file.endswith('json'):
+	if file.startswith("sub-"):
 		output.append(file)
 
 print('')

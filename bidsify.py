@@ -453,6 +453,10 @@ def getBIDSDir(rawDirPath, study):
 		bidsAnswer = bidsAnswer + f"BIDS_{today}"
 		return bidsAnswer
 
+	else:
+		bidsAnswer = str(bidsAnswer)
+		return bidsAnswer
+
 
 # this function asks the user how many volumes (if any) they'd like to remove from the functional runs. 
 # As part of future work on this project, I think it would be helpful to just remove volumes from raw functional runs

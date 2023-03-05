@@ -66,7 +66,7 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 		# if if doesn't exist, tell the user and then move to next line in csv file (next subject)
 		if not os.path.isdir(taskPath):
 			print(subject + " does not have a " + task + " directory. Moving to next subject.")
-			time.sleep(5)
+			time.sleep(1)
 
 		# if the path does exist and prun is in the niftiFormat variable, then create a directory dedicated to the prun nifti type and it's 
 		# associated task and runs.
@@ -91,7 +91,7 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 				os.chdir(run)
 				if not createAndCopyJson(task, subject, modality, funcBidsDir, newFileName):
 					print("json file could not be generated for subject " + subject + "'s " + task + "... no raw dicoms")
-					time.sleep(4)
+					time.sleep(1)
 
 				# copy the phsio corrected data into bids directory and bidsify
 
@@ -103,7 +103,7 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 						time.sleep(.8)
 					except FileNotFoundError:
 						print("prun file does not exist for subject " + subject + " " + task)
-						time.sleep(6)
+						time.sleep(1)
 
 
 					# if the user wanted to remove volumes, remove them here
@@ -119,11 +119,11 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 
 				else:
 					print("prun file has already been bidsified for " + subject + " " + task)
-					time.sleep(2)
+					time.sleep(1)
 
 				
 				# copy over the corresponding fieldmap data
-				copyFmapData(rawSubDir, oldSubName, bidsSubName, bidsDir, task, niftiFormat, runNum)
+				copyFmapData(rawSubDir, oldSubName, bidsSubName, bidsDir, task, "prun", runNum)
 
 				# go back to the task directory in the event of multiple runs
 				os.chdir(taskPath)
@@ -148,7 +148,7 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 				os.chdir(run)
 				if not createAndCopyJson(task, subject, modality, funcBidsDir, newFileName):
 					print("json file could not be generated for subject " + subject + "'s " + task + "... no raw dicoms")
-					time.sleep(4)
+					time.sleep(1)
 				# copy the regular run data into bids directory and bidsify
 				if not os.path.exists(f"{funcBidsDir}/{newFileName}"):
 					try:
@@ -158,7 +158,7 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 						time.sleep(.8)
 					except FileNotFoundError:
 						print("prun file does not exist for subject " + subject + " " + task)
-						time.sleep(6)
+						time.sleep(1)
 					# if the user wanted to remove volumes, remove them here
 					if numVolsToChop > 0:
 						print(f'removing {numVolsToChop} volumes from {newFileName}...')
@@ -170,11 +170,11 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 						print(f"{newFileName} now has {newTotalVols} volumes.")
 				else:
 					print("prun file has already been bidsified for " + subject + " " + task)
-					time.sleep(6)
+					time.sleep(1)
 
 				
 				# copy over the corresponding fieldmap data
-				copyFmapData(rawSubDir, oldSubName, bidsSubName, bidsDir, task, niftiFormat, runNum)
+				copyFmapData(rawSubDir, oldSubName, bidsSubName, bidsDir, task, "regular run", runNum)
 
 				# go back to the task directory in the event of multiple runs
 				os.chdir(taskPath)
@@ -199,24 +199,38 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 				os.chdir(run)
 				if not createAndCopyJson(task, subject, modality, funcBidsDir, newFileName):
 					print("json file could not be generated for subject " + subject + "'s " + task + "... no raw dicoms")
-					time.sleep(4)
+					time.sleep(1)
 				# copy the raw nifti data into bids directory and bidsify
 				if not os.path.exists(f"{funcBidsDir}/{newFileName}"):
 					# look for old naming convention of raw nifti data
+#					try:
+#						shutil.copy(f"sub-{oldSubName}_task-{task}_{modality}.nii", funcBidsDir)
+#						os.rename(f"{funcBidsDir}/sub-{oldSubName}_task-{task}_{modality}.nii", f"{funcBidsDir}/{newFileName}")
+#						print(f"successfully bidsified raw dicom nifti file for subject {subject} {task} run{runNum}")
+#						time.sleep(.8)
+#					except:
+						# see if you can embed a try statement here to copy over data with the new dcm2niix command
 					try:
-						shutil.copy(f"sub-{oldSubName}_task-{task}_{modality}.nii", funcBidsDir)
-						os.rename(f"{funcBidsDir}/sub-{oldSubName}_task-{task}_{modality}.nii", f"{funcBidsDir}/{newFileName}")
+						shutil.copy(newFileName, funcBidsDir)
 						print(f"successfully bidsified raw dicom nifti file for subject {subject} {task} run{runNum}")
 						time.sleep(.8)
-					except:
-						# see if you can embed a try statement here to copy over data with the new dcm2niix command
-						try:
+					except FileNotFoundError as e:
+						print(e)
+						#print("dcm2niix failed for subject " + subject + " " + task + ", which means no raw dicom nifti or json file.\nTry again manually in the terminal.")
+						# try to run dcm2niix again
+						print('Trying to run dcm2niix again...')
+						if os.path.isdir('dicom'):
+							os.chdir('dicom')
+							dcm2niix(task, oldSubName, modality, bidsSubName)
+							os.chdir('..')
+							os.rename(f"{bidsSubName}_task-{task}_{modality}.nii", newFileName)
 							shutil.copy(newFileName, funcBidsDir)
 							print(f"successfully bidsified raw dicom nifti file for subject {subject} {task} run{runNum}")
-							time.sleep(.8)
-						except FileNotFoundError:
-							print("dcm2niix_dev failed for subject " + subject + " " + task + ", which means no raw dicom nifti or json file.\nTry again manually in the terminal.")
-							time.sleep(8)
+							time.sleep(1)
+						else:
+							print(f"Subject {oldSubName}'s {task} task run {runNum} doesn't have raw dicoms in it's directory.\nUnable convert from raw dicoms to nifti.")
+
+
 					# if the user wanted to remove volumes, remove them here
 					if numVolsToChop > 0:
 						print(f'removing {numVolsToChop} volumes from {newFileName}...')
@@ -228,7 +242,7 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 						print(f"{newFileName} now has {newTotalVols} volumes.")
 				else:
 					print("raw dicom nifti file has already been bidsified for " + subject + " " + task)
-					time.sleep(6)
+					time.sleep(1)
 
 				os.chdir(taskPath)
 				# copy over the corresponding fieldmap data
@@ -458,10 +472,10 @@ def dcm2niix(taskName, subjectName, modality, bidsSubName):
 	 					."
 		proc1 = subprocess.Popen(dcm2niix, shell=True, stdout=subprocess.PIPE)
 		try:
-			proc1.wait()
+			proc1.communicate()
 		except:
-			print("dcm2niix_dev picked up an error for subject " + subjectName + " " + taskName + ".\nTry running it manually in the terminal.")
-			time.sleep(10)
+			print("dcm2niix picked up an error for subject " + subjectName + " " + taskName + ".\nTry running it manually in the terminal.")
+			time.sleep(3)
 	elif modality == "T1w":
 		dcm2niix = f"dcm2niix_dev \
 	 					-o ../ \

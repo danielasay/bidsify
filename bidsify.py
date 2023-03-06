@@ -530,7 +530,7 @@ def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir, numVolsToCh
 
 ## Check to see if there are any new subjects to run. If not, kill the script.
 	
-	bidsAnswer, mostRecentBids, newSubs = addNewSubjects(path, subjects, name)
+	bidsAnswer, mostRecentBids, newSubs = addNewSubjects(path, subjects, name, prefix)
 
 	if bidsAnswer == 'add new subjects to existing BIDS directory':
 		bidsDir = f'BIDS_{mostRecentBids}'
@@ -539,6 +539,7 @@ def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir, numVolsToCh
 	else:
 		if os.path.isdir(bidsDir) is False:
 			os.makedirs(bidsDir)
+
 
 	# print all messages both to stdout and logfile
 
@@ -601,7 +602,7 @@ def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir, numVolsToCh
 # this function checks if a BIDS directory already exists for a given study. If it does, it compares the date of the most recent BIDS to
 # today's date. If the dates are different, it will get a list of all the subjects in the most recent BIDS directory and return the list
 
-def addNewSubjects(path, subjects, studyName):
+def addNewSubjects(path, subjects, studyName, prefix):
 	# go into the study's main directory and see if and BIDS directories exist. If not, return 0's and proceed with bidsifying
 	os.chdir(f"{path}/..")
 	today = dt.date.today()
@@ -632,8 +633,37 @@ def addNewSubjects(path, subjects, studyName):
 	prevSubs.sort()
 
 	# compare the list of subjects from most recent BIDS directory with the list of subjects given from study csv file.
-	# 
-	prevSubsNew = [sub[4:] for sub in prevSubs]
+	#
+
+	# this section is necessary due to the nature of the bidsify script. Namely, that each run type (prun, run, raw) for each subject 
+	# has its own directory. As such, to find how many individual subjects are in the directory, we have to remove their 'sub-' prefix and
+	# 'Raw01' or 'Run01' or 'Prun01' suffix. We'll then remove duplicates and compare the length of that array to the number of subjects in 
+	# the study's raw directory 
+
+	prevSubsNew = [] 
+	for sub in prevSubs:
+		# if it's a Raw conversion
+
+		if 'Raw' in sub:
+			sub = sub[4:][:-5]
+			prevSubsNew.append(sub)
+
+		# if it's regular run
+
+		if 'Run' in sub:
+			sub = sub[4:][:-5]
+			prevSubsNew.append(sub)
+
+		if 'Prun' in sub:
+			sub = sub[4:][:-6]
+			prevSubsNew.append(sub)
+
+	# remove duplicates
+
+	prevSubsNew = list(set(prevSubsNew))			
+
+
+	#prevSubsNew = [for sub in prevSubs]
 	newSubs = []
 	for element in subjects:
 		if element not in prevSubsNew:

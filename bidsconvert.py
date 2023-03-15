@@ -13,6 +13,8 @@ import json as js
 from colorama import Fore
 from colorama import Style
 
+mask = 2
+umask = os.umask(mask)
 
 
 def bidsify(data, bidsDir, niftiFormat, numVolsToChop):
@@ -53,6 +55,10 @@ def parseNiftiInfo(niftiInfo):
 def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsToChop):
 	# if the modality is bold, then make a function bids directory for the subject.
 	# copy data over from raw according to the user specifications. Also copy fieldmaps
+	mask = 2
+	umask = os.umask(mask)
+
+
 	desiredNifti = parseNiftiInfo(niftiFormat)
 	oldSubName = subject
 	subject = modifySubName(subject)
@@ -229,6 +235,9 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 							time.sleep(.5)
 						else:
 							print(f"Subject {oldSubName}'s {task} task run {runNum} doesn't have raw dicoms in it's directory.\nUnable convert from raw dicoms to nifti.")
+					finally:
+						os.chdir(taskPath)
+						continue	
 
 
 					# if the user wanted to remove volumes, remove them here
@@ -312,6 +321,9 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 # this function copies over the fieldmap data for subject's user selected nifti type and task
 
 def copyFmapData(rawSubDir, oldSubName, bidsSubName, bidsDir, task, niftiFormat, runNum):
+	mask = 2
+	umask = os.umask(mask)
+
 	fmapBidsDir = "".join([bidsDir, "/", bidsSubName, "/fmap"])
 	try:
 		os.makedirs(fmapBidsDir)
@@ -380,6 +392,9 @@ def copyFmapData(rawSubDir, oldSubName, bidsSubName, bidsDir, task, niftiFormat,
 # this function serves to get rid of unnecessary underscores and hyphens in the subject's name
 
 def modifySubName(subject):
+	mask = 2
+	umask = os.umask(mask)
+
 	if '_' in subject:
 		newSubjectName = subject.replace('_', "")
 		return newSubjectName
@@ -394,6 +409,9 @@ def modifySubName(subject):
 	
 def createAndCopyJson(task, subject, modality, jsonDestination, subBidsName):
 	# check if dcm2niix_dev has already been run on the subject/task. If it has, copy those files to the subject's BIDS directory
+	mask = 2
+	umask = os.umask(mask)
+
 	existingFiles = []
 	# change the name to be in json format
 	if subBidsName.endswith('.nii'):
@@ -440,6 +458,9 @@ def createAndCopyJson(task, subject, modality, jsonDestination, subBidsName):
 
 
 def decompressDicoms(subject):
+	mask = 2
+	umask = os.umask(mask)
+
 	dicomFiles = []
 	for file in os.listdir():
 		if file.startswith('dicom'):
@@ -464,6 +485,9 @@ def decompressDicoms(subject):
 
 
 def dcm2niix(taskName, subjectName, modality, bidsSubName):
+	mask = 2
+	umask = os.umask(mask)
+
 	if modality == "bold" or modality == "epi":
 		dcm2niix = f"dcm2niix_dev \
 	 					-o ../ \
@@ -488,6 +512,9 @@ def dcm2niix(taskName, subjectName, modality, bidsSubName):
 		proc2.wait()
 
 def getTotalNumberOfVolumes(subject, file, bidsDir):
+	mask = 2
+	umask = os.umask(mask)
+	
 	# go to the directory of the recently copied and bidsified data
 	# get the number of volumes that the subject currently has via fslinfo, turn it into a json file and then return that number
 	os.chdir(bidsDir)

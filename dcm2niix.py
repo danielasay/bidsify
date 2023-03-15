@@ -38,7 +38,7 @@ def dcm2niix(taskName, subjectName, modality, hostname):
 		proc1 = subprocess.Popen(dcm2niix, shell=True, stdout=subprocess.PIPE)
 		try:
 			print("Running dcm2niix_dev...")
-			proc1.wait()
+			proc1.communicate()
 		except:
 			print("dcm2niix_dev picked up an error for subject " + subjectName + " " + taskName + ".\nTry running it manually in the terminal.")
 			time.sleep(10)	
@@ -52,7 +52,7 @@ def dcm2niix(taskName, subjectName, modality, hostname):
 	 					."
 		proc2 = subprocess.Popen(dcm2niix, shell=True, stdout=subprocess.PIPE)
 		print("Running dcm2niix_dev...")
-		proc2.wait()
+		proc2.communicate()
 		jsonFiles = []
 		for file in os.listdir():
 			if file.endswith('.json'):
@@ -83,7 +83,7 @@ def dcm2niix(taskName, subjectName, modality, hostname):
 	 					."
 		proc3 = subprocess.Popen(dcm2niix, shell=True, stdout=subprocess.PIPE)
 		print("Running dcm2niix_dev...")
-		proc3.wait()
+		proc3.communicate()
 
 
 # printing out the current working directory may help the user when asked for the task name, subject name and modality. 

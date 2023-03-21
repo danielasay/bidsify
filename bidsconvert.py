@@ -119,7 +119,7 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 						newTotalVols = totalVolumes - numVolsToChop
 						chopVols = f'fslroi {newFileName} {newFileName} {numVolsToChop} {newTotalVols}'
 						proc1 = subprocess.Popen(chopVols, shell=True, stdout=subprocess.PIPE)
-						proc1.wait()
+						proc1.communicate()
 						print(f"{newFileName} now has {newTotalVols} volumes.")
 
 
@@ -172,7 +172,7 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 						newTotalVols = totalVolumes - numVolsToChop
 						chopVols = f'fslroi {newFileName} {newFileName} {numVolsToChop} {newTotalVols}'
 						proc1 = subprocess.Popen(chopVols, shell=True, stdout=subprocess.PIPE)
-						proc1.wait()
+						proc1.communicate()
 						print(f"{newFileName} now has {newTotalVols} volumes.")
 				else:
 					print("prun file has already been bidsified for " + subject + " " + task)
@@ -247,7 +247,7 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 						newTotalVols = totalVolumes - numVolsToChop
 						chopVols = f'fslroi {newFileName} {newFileName} {numVolsToChop} {newTotalVols}'
 						proc1 = subprocess.Popen(chopVols, shell=True, stdout=subprocess.PIPE)
-						proc1.wait()
+						proc1.communicate()
 						print(f"{newFileName} now has {newTotalVols} volumes.")
 				else:
 					print("raw dicom nifti file has already been bidsified for " + subject + " " + task)
@@ -475,12 +475,12 @@ def decompressDicoms(subject):
 		if dicom.endswith(".tgz"):
 			untar = "tar -xzf dicom.tgz"
 			proc1 = subprocess.Popen(untar, shell=True, stdout=subprocess.PIPE)
-			proc1.wait()
+			proc1.communicate()
 			return True
 		elif dicom.endswith(".zip"):
 			unzip = "unzip dicom.zip"
 			proc2 = subprocess.Popen(unzip, shell=True, stdout=subprocess.PIPE)
-			proc2.wait()
+			proc2.communicate()
 			return True
 
 
@@ -509,7 +509,7 @@ def dcm2niix(taskName, subjectName, modality, bidsSubName):
 	 					-z n \
 	 					."
 		proc2 = subprocess.Popen(dcm2niix, shell=True, stdout=subprocess.PIPE)
-		proc2.wait()
+		proc2.communicate()
 
 def getTotalNumberOfVolumes(subject, file, bidsDir):
 	mask = 2

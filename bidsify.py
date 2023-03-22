@@ -654,18 +654,23 @@ def addNewSubjects(path, subjects, studyName, prefix):
 			sub = sub[4:][:-5]
 			prevSubsNew.append(sub)
 
+		# if it's a prun
+
 		if 'Prun' in sub:
 			sub = sub[4:][:-6]
 			prevSubsNew.append(sub)
 
 	# remove duplicates
 
-	prevSubsNew = list(set(prevSubsNew))			
+	prevSubsNew = list(set(prevSubsNew))		
+
+	prevSubsNew.sort()
 
 
 	#prevSubsNew = [for sub in prevSubs]
 	newSubs = []
 	for element in subjects:
+		element = element.replace('_', '')
 		if element not in prevSubsNew:
 			newSubs.append(element)
 	numNewSubs = len(newSubs)

@@ -58,6 +58,7 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 	mask = 2
 	umask = os.umask(mask)
 
+	print(rawSubDir)
 
 	desiredNifti = parseNiftiInfo(niftiFormat)
 	oldSubName = subject
@@ -326,8 +327,6 @@ def copyFmapData(rawSubDir, oldSubName, bidsSubName, bidsDir, task, niftiFormat,
 	mask = 2
 	umask = os.umask(mask)
 
-
-	print("making it to this point")
 	fmapBidsDir = "".join([bidsDir, "/", bidsSubName, "/fmap"])
 	try:
 		os.makedirs(fmapBidsDir)

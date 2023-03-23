@@ -533,8 +533,6 @@ def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDirPath, numVols
 	bidsAnswer, mostRecentBids, newSubs = addNewSubjects(path, subjects, name, prefix)
 
 	if 'add new subjects' in bidsAnswer:
-		print('making it here')
-		print(bidsDirPath)
 		os.chdir(path)
 		os.chdir("..")
 		bidsDir = f'BIDS_{mostRecentBids}'
@@ -672,11 +670,10 @@ def addNewSubjects(path, subjects, studyName, prefix):
 	prevSubsNew.sort()
 
 
-	#prevSubsNew = [for sub in prevSubs]
 	newSubs = []
 	for element in subjects:
-		element = element.replace('_', '')
-		if element not in prevSubsNew:
+		tmpSub = element.replace('_', '')
+		if tmpSub not in prevSubsNew:
 			newSubs.append(element)
 	numNewSubs = len(newSubs)
 

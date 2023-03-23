@@ -907,6 +907,7 @@ if modality != 'anatomical':
 else:
 	numVolsToChop = 0
 
+# with all this info in hand, call bidsify
 
 bidsify(selectedStudy, rawDirectory, modality, niftiFormat, modalityLen, bidsDirPath, numVolsToChop)
 

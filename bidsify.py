@@ -505,7 +505,7 @@ def chopVolumes(modality):
 # from the user, and then create a csv file with the necessary info for bidsmanager. That will include:
 # subject name, session, modality, full path to file, task (can be left blank for T1)
 
-def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir, numVolsToChop):
+def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDirPath, numVolsToChop):
 
 
 	# go to the raw path for the selected study
@@ -532,13 +532,18 @@ def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir, numVolsToCh
 	
 	bidsAnswer, mostRecentBids, newSubs = addNewSubjects(path, subjects, name, prefix)
 
-	if bidsAnswer == 'add new subjects to existing BIDS directory':
+	if 'add new subjects' in bidsAnswer:
+		print('making it here')
+		print(bidsDirPath)
+		os.chdir(path)
+		os.chdir("..")
 		bidsDir = f'BIDS_{mostRecentBids}'
 		os.rename(bidsDir, f'BIDS_{today}')
+		os.chdir(bidsDirPath)
 		subjects = newSubs
 	else:
-		if os.path.isdir(bidsDir) is False:
-			os.makedirs(bidsDir)
+		if os.path.isdir(bidsDirPath) is False:
+			os.makedirs(bidsDirPath)
 
 
 	# print all messages both to stdout and logfile
@@ -593,7 +598,7 @@ def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDir, numVolsToCh
 			if counter == 0:
 				counter += 1
 				continue
-			bidsconvert.bidsify(row, bidsDir, niftiFormat, numVolsToChop)
+			bidsconvert.bidsify(row, bidsDirPath, niftiFormat, numVolsToChop)
 
 	sys.stdout = backup
 
@@ -728,7 +733,7 @@ def addNewSubjects(path, subjects, studyName, prefix):
 					print("You did not confirm your selection. Please try again.")
 					time.sleep(1.5)
 					continue	
-
+		bidsAnswer = str(bidsAnswer)
 		return bidsAnswer, mostRecent, newSubs
 
 # this function serves as a helper in bidsify() to pull the relevant information from the studies.csv file
@@ -896,7 +901,7 @@ if modality != 'anatomical':
 else:
 	niftiFormat = ""
 
-bidsDir = getBIDSDir(rawDirectory, selectedStudy)
+bidsDirPath = getBIDSDir(rawDirectory, selectedStudy)
 
 if modality != 'anatomical':
 	numVolsToChop = chopVolumes(modality)
@@ -904,7 +909,7 @@ else:
 	numVolsToChop = 0
 
 
-bidsify(selectedStudy, rawDirectory, modality, niftiFormat, modalityLen, bidsDir, numVolsToChop)
+bidsify(selectedStudy, rawDirectory, modality, niftiFormat, modalityLen, bidsDirPath, numVolsToChop)
 
 #checkForEmptyBids(bidsDir)
 

@@ -13,9 +13,19 @@ import json as js
 from colorama import Fore
 from colorama import Style
 
+# this serves to ensure that permissions on the output files are more broad than just the user or root. This is the global variable, but
+# it also is present in any function where output files are being written, just in case
+
 mask = 2
 umask = os.umask(mask)
 
+
+# The script really kicks off here, taking information from the bidsify.py script. The data parameter represents information stored in a csv
+# file. Within that csv file are the subject name, data acquisition session, the modality, the path to the subject's raw data and the name of 
+# the task (if functional/fieldmap data)
+
+# the function prints of a message to the user stating exactly which subject, modaltiy and task are being converted to BIDS format
+# the copyData function starts things off, and all subsequent function calls come from there.
 
 def bidsify(data, bidsDir, niftiFormat, numVolsToChop):
 	subject = data[0]
@@ -28,10 +38,7 @@ def bidsify(data, bidsDir, niftiFormat, numVolsToChop):
 	copyData(subject, modality, subPath, task, bidsDir, niftiFormat, numVolsToChop)
 
 
-# I want it take all the info for a given subject, create the BIDS dir if it doesn't already exist,
-# then cd into the 'func' dir for bold and 'anat' for T1w, then cd into the task for bold, then iterate
-# through each run for that task, copying the desired nii file (run_01.nii, prun_01.nii or from raw) and
-# the associated json file to the BIDS directory
+# this is an ancillary function that can be used to change the nifti format info to match how it's stored in the subject's raw directory
 
 
 def parseNiftiInfo(niftiInfo):
@@ -45,11 +52,10 @@ def parseNiftiInfo(niftiInfo):
 	niftiFormat = niftiFormat[:-1]
 	return niftiFormat
 
-
-
-# This function will go through each subject in the list, go into each functional task directory,
-# and each task's run directory and copy the run_01.nii file to that subject's corresponding BIDS
-# directory. There are several lines where edits are made to strings for BIDS compliance. 
+# this function takes all the info for a given subject, create the BIDS dir if it doesn't already exist,
+# then cd into the raw 'func' dir for bold and 'anat' for T1w, then cd into the task for bold, then iterate
+# through each run for that task, copying the desired nii file (run_01.nii, prun_01.nii or from raw) and
+# the associated json file to the BIDS directory
 
 
 def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsToChop):
@@ -57,8 +63,6 @@ def copyData(subject, modality, rawSubDir, task, bidsDir, niftiFormat, numVolsTo
 	# copy data over from raw according to the user specifications. Also copy fieldmaps
 	mask = 2
 	umask = os.umask(mask)
-
-	print(rawSubDir)
 
 	desiredNifti = parseNiftiInfo(niftiFormat)
 	oldSubName = subject
@@ -405,7 +409,7 @@ def modifySubName(subject):
 		return subject
 				
 
-# this function needs to go into a specific subject's task directory, and for each run check if a dicom folder exists.
+# this function goes into a specific subject's task directory, and for each run check if a dicom folder exists.
 # if it does, make sure a copy of the .json file from the dicom folder gets copied out to the directory above it. If the 
 # dicom directory doesn't exist, we will need to untar or unzip the compressed dicom file (check if it exists first. use try and except logic)
 # once that is done, we can go into the new dicom directory and run dcm2niix_dev, then copy the json file out when it's done. 
@@ -460,6 +464,9 @@ def createAndCopyJson(task, subject, modality, jsonDestination, subBidsName):
 	return True
 
 
+# this function gets called if the subject's raw data for a particular scan has not been decompressed from its .tgz or .zip file. Once it does,
+# it returns a boolean to the createAndCopyJson function
+
 def decompressDicoms(subject):
 	mask = 2
 	umask = os.umask(mask)
@@ -485,6 +492,8 @@ def decompressDicoms(subject):
 			proc2 = subprocess.Popen(unzip, shell=True, stdout=subprocess.PIPE)
 			proc2.communicate()
 			return True
+
+# this function converts the raw dicoms to nifti, according to the specific scan/subject information
 
 
 def dcm2niix(taskName, subjectName, modality, bidsSubName):
@@ -513,6 +522,9 @@ def dcm2niix(taskName, subjectName, modality, bidsSubName):
 	 					."
 		proc2 = subprocess.Popen(dcm2niix, shell=True, stdout=subprocess.PIPE)
 		proc2.communicate()
+
+# this function only gets called if the user has decided to chop off volumes from the beginning of their data. This will return the total number of volumes
+# the file currently has
 
 def getTotalNumberOfVolumes(subject, file, bidsDir):
 	mask = 2
@@ -545,23 +557,6 @@ def getTotalNumberOfVolumes(subject, file, bidsDir):
 
 	return totalVolumes
 
-
-# This function will check if the run_01.nii file for a particular tasks and run have already been copied over to the 
-# subject's BIDS directory.
-
-def checkIfCopied(self, task, run, bids_directory):
-	os.chdir(bids_directory)
-	files = os.listdir()
-	for file in files:
-		if task in file and run in file and file.endswith(".nii"):
-			return True
-	return False
-
-# This function renames the copied run_01.nii file to be in BIDS format
-
-def renameFile(self, task, newRun, run, subDir, subName):
-	os.chdir(subDir)
-	os.rename(f"{run}.nii", f"sub-{subName}" + "_task-" + f"{task}" + f"{newRun}" + "_bold.nii")
 
 
 

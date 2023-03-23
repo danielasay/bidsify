@@ -152,6 +152,8 @@ def validateRawDir(study):
 		else:
 			return True
 
+# this if a general use function to validate if a directory exists
+
 def validateDir(path):
 	if not os.path.isdir(path):
 		return False
@@ -160,7 +162,7 @@ def validateDir(path):
 
 
 
-# 2. Ask user if it wants niftis created from raw dicoms, or the run_01.nii, prun_01.nii or all of the above.
+# 2. Ask user if they want niftis created from raw dicoms, the run_01.nii, or prun_01.nii
 
 # this function will ask the user to choose from several options regarding how they want their data copied.
 
@@ -440,6 +442,8 @@ def getBIDSDir(rawDirPath, study):
 				time.sleep(1.5)
 				continue
 
+	# use the path one step above the raw directory if the user selects 'default'
+
 	if bidsAnswer == 'default':
 		counter = 0
 		slash = "/"
@@ -497,13 +501,11 @@ def chopVolumes(modality):
 
 	return 	volumeAnswer	
 
-# example
+# example of removing volumes
 #fslroi sub-opi030pre-prun01_task-cuff_bold.nii sub-opi030pre-prun01_task-cuff_bold.nii 10 480	
 
-# 6. Make bidsify and copy into discrete functions (makes the script more robust and readable.)
-# ****** This will make use of the bidsmanager library. I will take all of the info that I've gathered
-# from the user, and then create a csv file with the necessary info for bidsmanager. That will include:
-# subject name, session, modality, full path to file, task (can be left blank for T1)
+# this function is the core of the script. It gathers all the necessary information about a study, puts it into a csv file and then
+# passes all of that info to the bidsconvert.bidsify function
 
 def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDirPath, numVolsToChop):
 
@@ -528,9 +530,11 @@ def bidsify(name, path, modality, niftiFormat, modalityLen, bidsDirPath, numVols
 			subjects.append(file)
 			subjects.sort()
 
-## Check to see if there are any new subjects to run. If not, kill the script.
+## Check to see if there are any new subjects to run.
 	
 	bidsAnswer, mostRecentBids, newSubs = addNewSubjects(path, subjects, name, prefix)
+
+	# if the user wants to add new subjects to an existing BIDS directory, this function allows them to do so.
 
 	if 'add new subjects' in bidsAnswer:
 		os.chdir(path)
@@ -742,9 +746,7 @@ def pullInfo(csvFile, study):
 	tasks = subset.iloc[0]['Tasks']
 	return subset, prefix, rawDicomFormat, tasks
 
-# this function creates the csv file for bidsmanager
-
-# might have to turn this into a pandas dataframe that gets written as a csv file later.
+# this function creates the csv file for bidsconvert
 
 def bidsCSV(file, columns):
 	with open(file, 'w') as csvfile:
@@ -907,13 +909,6 @@ else:
 
 
 bidsify(selectedStudy, rawDirectory, modality, niftiFormat, modalityLen, bidsDirPath, numVolsToChop)
-
-#checkForEmptyBids(bidsDir)
-
-#
-
-
-
 
 
 

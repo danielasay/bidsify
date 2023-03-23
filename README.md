@@ -17,7 +17,7 @@ How to use it @ CPFRC:
 
 4. Once you've initialized (or resumed) a screen, navigate to the directory where you placed the bidsconvert.py and bidsify.py files. Execute this command: python3 bidsify.py 
 
-5. The program will start and ask you a series of questions, including which study you want to bidsify, which modalities you want, which nifti files you want, where you want your bidsified data to land, and if you want to remove any volumes from the beginning of your functional data. After you've input all that information, the bidsify work will start. Keep an eye on the messages printed out to the terminal. They will tell you about the progress being made. If anything looks off, kill the program (^c) and investigate the issue. Reach out to Daniel (dasay@med.umich.edu) with any questions or concerns.
+5. The program will start and ask you a series of questions, including which study you want to bidsify, which modalities you want, which nifti files you want, where you want your bidsified data to land, and if you want to remove any volumes from the beginning of your functional data. After you've input all that information, the bidsify work will start. Keep an eye on the messages printed out to the terminal. They will tell you about the progress being made. If anything looks off, kill the program (^c) and investigate the issue. Reach out to Daniel (danielasay@fas.harvard.edu) with any questions or concerns.
 
 A few notes. 
 
